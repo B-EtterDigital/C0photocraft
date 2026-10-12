@@ -84,6 +84,10 @@ pub fn start() {
                     let (session, warnings) = crate::preset_bridge::session(presets.clone());
                     preset_warnings.extend(warnings);
                     let mut app = PhotocraftApp::new(session, services(inbox.clone()));
+                    #[cfg(feature = "page-control")]
+                    {
+                        app = crate::page_control::attach(app, &cc.egui_ctx);
+                    }
                     if !preset_warnings.is_empty() {
                         photocraft_ui_egui::notices::post(&mut app, i18n::t("Some brush presets could not be loaded"), preset_warnings, true, None);
                     }

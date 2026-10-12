@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>C0photocraft</title>
+  <link data-trunk rel="rust" href="../../apps/photocraft-web/Cargo.toml" data-bin="photocraft-web" data-cargo-profile="wasm-release" data-cargo-features="heif,page-control" data-wasm-opt="z" data-weak-refs />
+  <style>
+    /* Transparent until the app paints: the host's own themed loading state shows through. */
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    #photocraft_canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    #photocraft_loading { display: none; }
+  </style>
+  <script>
+    // C0VIBE's host calls window.__c0hostRequest (src/shared/sow/guestView.ts in C0X); PhotoCraft's
+    // page-control feature defines window.__photocraftControl once the app runs. Until then this is
+    // undefined, which the host reads as "not ready yet".
+    Object.defineProperty(window, '__c0hostRequest', { get: () => window.__photocraftControl });
+  </script>
+</head>
+<body>
+  <canvas id="photocraft_canvas"></canvas>
+  <div id="photocraft_loading"></div>
+</body>
+</html>
