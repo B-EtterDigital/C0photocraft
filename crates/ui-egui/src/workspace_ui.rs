@@ -180,6 +180,7 @@ fn new_workspace(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
     if let Some(panels) = ws.get_mut("panels").and_then(Value::as_object_mut) {
         panels.remove("rail");
         panels.remove("menu_bar");
+        panels.remove("community_links");
     }
     if p.get("keyboardShortcuts").and_then(Value::as_bool) == Some(true) {
         ws["shortcuts"] = json!(prefs.shortcuts);

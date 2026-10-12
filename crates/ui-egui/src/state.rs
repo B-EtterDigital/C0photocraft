@@ -399,6 +399,10 @@ pub struct Panels {
     /// bar can hide it; the caption buttons of a custom title bar go with it.
     #[serde(default = "yes")]
     pub menu_bar: bool,
+    /// The community links (Discord button, website and GitHub row) on the start screen and in About.
+    /// An app that embeds PhotoCraft's UI and credits it in its own About can hide them.
+    #[serde(default = "yes")]
+    pub community_links: bool,
     /// The Gradient tool's options-bar swatch opened the Gradient Editor window (`gradient_ui`).
     /// Photoshop opens its Gradient Editor from that swatch; this is the same idea, drawn as a
     /// floating window rather than a modal so the canvas stays usable while a gradient is edited.
@@ -424,6 +428,7 @@ impl Default for Panels {
             hidden_by_tab: None,
             rail: true,
             menu_bar: true,
+            community_links: true,
             gradient_editor: false,
         }
     }
