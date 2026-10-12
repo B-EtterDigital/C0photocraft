@@ -862,7 +862,7 @@ pub fn apply(ctx: &egui::Context, kind: ThemeKind) {
     // Keep native windows at SystemDefault so macOS continues reporting OS appearance changes,
     // including when an integration or restored egui state pinned its own theme preference.
     ctx.set_theme(egui::ThemePreference::System);
-    let t = Tokens::for_kind(kind);
+    let t = host::resolve(ctx, Tokens::for_kind(kind));
     ctx.data_mut(|d| d.insert_temp(egui::Id::new("photocraft-theme"), t));
     let mut v = if t.dark() { Visuals::dark() } else { Visuals::light() };
     v.panel_fill = t.chrome;
@@ -945,6 +945,7 @@ pub const ROW_GAP: f32 = 4.0;
 pub fn canvas_bg(t: &Tokens) -> Color32 {
     t.canvas
 }
+pub mod host; // An embedding host's run-time palette (not upstream's: c0/photocraft-host/PATCH-DEBT.md).
 
 #[cfg(test)]
 mod tests {
@@ -1216,12 +1217,13 @@ mod tests {
 /// Set `PHOTOCRAFT_THEME_FILE=/path/tokens.json` in a debug build; the file is polled and applied
 /// on change, so colours, radii and sizes can be tuned without recompiling. Keys are `Tokens` field
 /// names; values are `"#rrggbb"`, `"#rrggbbaa"` or numbers. Compiled out of release builds.
-#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
 pub mod live {
     use super::Tokens;
     use egui::Color32;
+    #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
     use std::time::SystemTime;
 
+    #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
     #[derive(Default)]
     pub struct LiveTokens {
         path: Option<std::path::PathBuf>,
@@ -1229,6 +1231,7 @@ pub mod live {
         last_check: f64,
     }
 
+    #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
     impl LiveTokens {
         pub fn from_env() -> Self {
             Self { path: std::env::var_os("PHOTOCRAFT_THEME_FILE").map(Into::into), ..Default::default() }

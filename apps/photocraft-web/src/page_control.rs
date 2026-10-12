@@ -11,10 +11,17 @@
 //! through [`PhotocraftApp::with_control`]. A request wakes the app (`request_repaint`), so it is
 //! answered on the next frame even when nothing else is drawing. Off by default: a plain web build
 //! exposes nothing to the page.
+//!
+//! One field is the page's own: `ui.set {themeTokens: {...}}` lays the embedding host's colours and
+//! radii over the chosen preset (`photocraft_ui_egui::theme::host`). It is taken out of the request
+//! here, the rest of `ui.set` goes to the app unchanged, and the reply's `result` becomes
+//! `{"themeTokens": {"applied": [...], "unknown": [...], "invalid": [...]}}`.
 
+use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 
 use photocraft_ui_egui::control::ControlRequest;
+use photocraft_ui_egui::theme::host;
 use photocraft_ui_egui::PhotocraftApp;
 use serde_json::{Value, json};
 use wasm_bindgen::JsCast as _;
@@ -26,6 +33,15 @@ pub const PAGE_FUNCTION: &str = "__photocraftControl";
 const MAX_REQUEST_BYTES: usize = 1024 * 1024;
 /// How often a waiting request checks for its reply.
 const POLL_MS: i32 = 4;
+/// The `ui.set` field that carries the host's palette.
+const THEME_TOKENS: &str = "themeTokens";
+
+/// A palette set by a `ui.set` request the app has not answered yet.
+struct Palette {
+    /// The set it replaced, put back if the app refuses the rest of the request.
+    before: Option<Arc<Value>>,
+    report: Value,
+}
 
 /// Wires the page function to `app`'s control channel.
 pub fn attach(app: PhotocraftApp, ctx: &egui::Context) -> PhotocraftApp {
@@ -40,12 +56,12 @@ fn install(tx: Sender<ControlRequest>, ctx: egui::Context) {
         return;
     };
     let call = Closure::<dyn FnMut(JsValue) -> js_sys::Promise>::new(move |text: JsValue| {
-        let reply = match parse(&text) {
-            Ok((method, params)) => submit(&tx, &ctx, method, params),
-            Err(error) => Err(error),
-        };
+        let reply = parse(&text).and_then(|(method, params)| {
+            let (params, palette) = take_palette(&ctx, &method, params)?;
+            Ok((submit(&tx, &ctx, method, params)?, palette))
+        });
         match reply {
-            Ok(rx) => wasm_bindgen_futures::future_to_promise(wait(rx)),
+            Ok((rx, palette)) => wasm_bindgen_futures::future_to_promise(wait(rx, ctx.clone(), palette)),
             Err(error) => js_sys::Promise::resolve(&JsValue::from_str(&encode(&json!({"ok": false, "error": error})))),
         }
     });
@@ -67,6 +83,28 @@ fn parse(text: &JsValue) -> Result<(String, Value), String> {
     Ok((method.to_owned(), value.get("params").cloned().unwrap_or(Value::Null)))
 }
 
+/// Applies `ui.set`'s `themeTokens` at once (so the preset the same request selects is drawn with it)
+/// and takes the field out: the app's `ui.set` refuses fields it does not know.
+fn take_palette(ctx: &egui::Context, method: &str, mut params: Value) -> Result<(Value, Option<Palette>), String> {
+    let tokens = if method == "ui.set" { params.as_object_mut().and_then(|fields| fields.remove(THEME_TOKENS)) } else { None };
+    let Some(tokens) = tokens else { return Ok((params, None)) };
+    let before = host::current(ctx);
+    let report = host::set(ctx, &tokens)?.to_json();
+    Ok((params, Some(Palette { before, report })))
+}
+
+/// Adds the palette's report to the app's reply, or undoes the palette when the app said no.
+fn settle(ctx: &egui::Context, reply: &mut Value, palette: Palette) {
+    if reply.get("ok").and_then(Value::as_bool) != Some(true) {
+        host::put(ctx, palette.before);
+        return;
+    }
+    if !reply["result"].is_object() {
+        reply["result"] = json!({});
+    }
+    reply["result"][THEME_TOKENS] = palette.report;
+}
+
 fn submit(tx: &Sender<ControlRequest>, ctx: &egui::Context, method: String, params: Value) -> Result<Receiver<Value>, String> {
     let (reply, rx) = channel();
     // No deadline: `std::time::Instant` does not exist in the browser; the page enforces its own.
@@ -75,10 +113,15 @@ fn submit(tx: &Sender<ControlRequest>, ctx: &egui::Context, method: String, para
     Ok(rx)
 }
 
-async fn wait(rx: Receiver<Value>) -> Result<JsValue, JsValue> {
+async fn wait(rx: Receiver<Value>, ctx: egui::Context, mut palette: Option<Palette>) -> Result<JsValue, JsValue> {
     loop {
         match rx.try_recv() {
-            Ok(value) => return Ok(JsValue::from_str(&encode(&value))),
+            Ok(mut value) => {
+                if let Some(palette) = palette.take() {
+                    settle(&ctx, &mut value, palette);
+                }
+                return Ok(JsValue::from_str(&encode(&value)));
+            }
             Err(TryRecvError::Disconnected) => {
                 return Ok(JsValue::from_str(&encode(&json!({"ok": false, "error": "PhotoCraft dropped the request"}))));
             }
