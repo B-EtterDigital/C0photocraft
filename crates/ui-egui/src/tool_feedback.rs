@@ -191,7 +191,9 @@ pub fn ants_phase(ctx: &egui::Context) -> f32 {
 /// Draw animated marching ants along `points`.
 pub fn draw_ants(painter: &egui::Painter, points: &[Pos2], closed: bool) {
     let phase = ants_phase(painter.ctx());
-    painter.extend(ants(points, closed, phase));
+    // On pixel centres, so a whole-pixel phase puts every dash edge on a pixel edge.
+    let points: Vec<Pos2> = points.iter().map(|p| pos2(painter.round_to_pixel_center(p.x), painter.round_to_pixel_center(p.y))).collect();
+    painter.extend(ants(&points, closed, phase));
 }
 
 /// Polygon approximating the ellipse inscribed in `r` (enough vertices to look smooth).
