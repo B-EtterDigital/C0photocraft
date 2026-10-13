@@ -9,6 +9,8 @@ use crate::state::Tool;
 use crate::theme::{self, Tokens};
 use crate::{PhotocraftApp, icons, widgets};
 
+pub mod toolbar_float;
+
 // ----------------------------------------------------------------------------- toolbar
 
 /// Tool groups separated by hairlines, Photoshop order.
@@ -84,7 +86,8 @@ pub fn toolbar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     // Two columns when the header chevron asks for them; a column that doesn't fit scrolls.
     let double = app.ui.panels.toolbar_double;
     let w = if double { w1 + bx + 2.0 } else { w1 };
-    egui::Panel::left("toolbar").resizable(false).exact_size(w).frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(m, 8))).show(
+    let panel = egui::Panel::left("toolbar").resizable(false).exact_size(w).frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(m, 8)));
+    let float = toolbar_float::host(app, ui.ctx(), (w, bx, m), panel).show(
         ui,
         |ui| {
             if t.pro {
@@ -92,6 +95,7 @@ pub fn toolbar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                 let (cr, resp) = ui.allocate_exact_size(vec2(bx, 14.0), Sense::click());
                 icons::paint(ui, cr, if double { "chevrons-left" } else { "chevrons-right" }, 11.0, if resp.hovered() { t.text } else { t.text_faint });
                 resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, tl!("Toolbar")));
+                toolbar_float::mode_menu(&resp, &mut app.ui.panels);
                 if resp.clicked() {
                     app.ui.panels.toolbar_double = !app.ui.panels.toolbar_double;
                 }
@@ -307,6 +311,7 @@ pub fn toolbar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
             }
         },
     );
+    toolbar_float::settle(&mut app.ui.panels, float);
 }
 
 /// Glyph size of a toolbar tool button. Pro fills two thirds of the button, close to Photoshop's

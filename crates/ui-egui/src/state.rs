@@ -386,6 +386,12 @@ pub struct Panels {
     /// The toolbar's header chevron: two columns even when one fits (#1197).
     #[serde(default)]
     pub toolbar_double: bool,
+    /// The toolbar as a palette over the canvas, which then takes the full width: a third mode after one and two columns.
+    #[serde(default)]
+    pub toolbar_floating: bool,
+    /// Where the floating toolbar sits and whether it is pinned there.
+    #[serde(default)]
+    pub toolbar_float: crate::panels::toolbar_float::Place,
     /// The right-hand panel dock. ⇧Tab hides and shows it, as in Photoshop (#1313).
     #[serde(default = "yes")]
     pub dock: bool,
@@ -424,6 +430,8 @@ impl Default for Panels {
             brush_settings: false,
             character: false,
             toolbar_double: false,
+            toolbar_floating: false,
+            toolbar_float: Default::default(),
             dock: true,
             hidden_by_tab: None,
             rail: true,
