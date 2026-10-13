@@ -367,7 +367,8 @@ fn switching_columns_while_floating_keeps_the_top_left_corner() {
         assert_eq!(place(&h), pos, "double={double}: and the remembered place");
     }
     // Near the bottom-right corner the wider palette is clamped, not pushed out of the canvas.
-    drag(&mut h, grip(&h).center(), vec2(3000.0, 3000.0));
+    let at = grip(&h).center();
+    drag(&mut h, at, vec2(3000.0, 3000.0));
     for double in [false, true] {
         assert_eq!(call(h.state_mut(), &ctx, "ui.set", json!({"panels": {"toolbar_double": double}}))["ok"], true);
         h.run_steps(4);
@@ -383,9 +384,11 @@ fn the_palette_stays_inside_a_small_canvas_in_both_forms() {
         h.state_mut().last_canvas_rect = small;
         h.run_steps(4);
         assert!(small.contains_rect(palette_area(&h)), "double={double}: {:?} in {small:?}", palette_area(&h));
-        drag(&mut h, grip(&h).center(), vec2(3000.0, 3000.0));
+        let at = grip(&h).center();
+        drag(&mut h, at, vec2(3000.0, 3000.0));
         assert!(small.contains_rect(palette_area(&h)), "double={double} dragged: {:?}", palette_area(&h));
-        drag(&mut h, grip(&h).center(), vec2(-3000.0, -3000.0));
+        let at = grip(&h).center();
+        drag(&mut h, at, vec2(-3000.0, -3000.0));
         assert!(small.contains_rect(palette_area(&h)), "double={double} dragged back: {:?}", palette_area(&h));
     }
 }
