@@ -30,9 +30,14 @@ fn new_app() -> PhotocraftApp {
 /// Only the toolbar, as upstream's toolbar tests draw it; what is left of the frame beside it is
 /// kept under `"left"`.
 fn toolbar_harness(kind: ThemeKind, floating: bool) -> Harness {
+    columns_harness(kind, floating, false)
+}
+
+fn columns_harness(kind: ThemeKind, floating: bool, double: bool) -> Harness {
     let mut app = new_app();
     app.ui.tool = Tool::Move;
     app.ui.panels.toolbar_floating = floating;
+    app.ui.panels.toolbar_double = double;
     app.last_canvas_rect = CANVAS;
     let mut h = egui_kittest::Harness::builder().with_size(vec2(900.0, 1400.0)).with_step_dt(1.0 / 60.0).build_ui_state(
         |ui, app: &mut PhotocraftApp| {
@@ -251,9 +256,9 @@ fn a_pinned_palette_does_not_move() {
 }
 
 /// Pro themes have the header chevron: a click still switches one and two columns (upstream's
-/// behaviour, #1197), its context menu offers the three modes.
+/// behaviour, #1197), its context menu offers the four states.
 #[test]
-fn the_header_chevron_menu_switches_the_three_modes() {
+fn the_header_chevron_menu_switches_the_four_states() {
     let mut h = toolbar_harness(ThemeKind::Pro, false);
     let mode = |h: &Harness| (h.state().ui.panels.toolbar_floating, h.state().ui.panels.toolbar_double);
     let choose = |h: &mut Harness, label: &str| {
@@ -262,15 +267,15 @@ fn the_header_chevron_menu_switches_the_three_modes() {
         h.get_by_label(label).click();
         h.run_steps(3);
     };
-    choose(&mut h, "Two Columns");
+    choose(&mut h, "Docked, two columns");
     assert_eq!(mode(&h), (false, true));
-    choose(&mut h, "Floating");
-    assert_eq!(mode(&h), (true, true), "floating keeps the column count");
+    choose(&mut h, "Floating, two columns");
+    assert_eq!(mode(&h), (true, true));
     assert_eq!(left(&h), EDGE);
     h.get_by_label("Toolbar").click();
     h.run_steps(2);
     assert_eq!(mode(&h), (true, false), "the chevron's click still switches the columns, floating or not");
-    choose(&mut h, "One Column");
+    choose(&mut h, "Docked, one column");
     assert_eq!(mode(&h), (false, false));
     assert!(left(&h) >= EDGE + 40.0);
 }
@@ -281,9 +286,148 @@ fn the_grip_menu_docks_the_palette() {
     let mut h = toolbar_harness(ThemeKind::Studio, true);
     h.get_by_label(GRIP_LABEL).click_secondary();
     h.run_steps(3);
-    h.get_by_label("Dock Toolbar").click();
+    h.get_by_label("Docked, one column").click();
     h.run_steps(3);
     assert!(!h.state().ui.panels.toolbar_floating);
     assert!(left(&h) >= EDGE + 40.0);
     assert!(h.query_by_label(GRIP_LABEL).is_none());
+}
+
+/// Left edges (rounded) of the tool buttons: one value per column.
+fn columns(buttons: &[Rect]) -> Vec<i32> {
+    let mut xs: Vec<i32> = buttons.iter().map(|b| b.left().round() as i32).collect();
+    xs.sort_unstable();
+    xs.dedup();
+    xs
+}
+
+/// Height the tool buttons span.
+fn span(buttons: &[Rect]) -> f32 {
+    let top = buttons.iter().map(|b| b.top()).fold(f32::MAX, f32::min);
+    let bottom = buttons.iter().map(|b| b.bottom()).fold(f32::MIN, f32::max);
+    bottom - top
+}
+
+/// Button positions relative to the first, so a docked and a floating layout compare.
+fn relative(buttons: &[Rect]) -> Vec<(i32, i32)> {
+    buttons.iter().map(|b| ((b.min.x - buttons[0].min.x).round() as i32, (b.min.y - buttons[0].min.y).round() as i32)).collect()
+}
+
+fn palette_area(h: &Harness) -> Rect {
+    h.ctx.memory(|m| m.area_rect(egui::Id::new("toolbar-float"))).expect("the palette is drawn")
+}
+
+/// With `toolbar_double` on, the floating palette is two tools wide and shorter than the one-column
+/// palette, with the same tools in the same order and the same dividers as the docked two columns.
+#[test]
+fn floating_honours_toolbar_double() {
+    for (kind, side) in [(ThemeKind::Studio, 36.0), (ThemeKind::Pro, 30.0)] {
+        let single = toolbar_harness(kind, true);
+        let double = columns_harness(kind, true, true);
+        let docked_double = columns_harness(kind, false, true);
+        let one = tool_buttons(&single, side);
+        let two = tool_buttons(&double, side);
+        assert_eq!(columns(&one).len(), 1, "{kind:?}: one column floating");
+        assert_eq!(columns(&two).len(), 2, "{kind:?}: two tools wide: {two:?}");
+        assert!(span(&two) < span(&one) * 0.75, "{kind:?}: shorter: {} vs {}", span(&two), span(&one));
+        assert_eq!(two.len(), one.len(), "{kind:?}: every tool of the one-column palette is present");
+        assert_eq!(relative(&two), relative(&tool_buttons(&docked_double, side)), "{kind:?}: the docked two-column layout, dividers included");
+        assert!(palette_area(&double).width() > palette_area(&single).width(), "{kind:?}: the frame is wider");
+        assert!(palette_area(&double).height() < palette_area(&single).height(), "{kind:?}: and shorter");
+        assert!(CANVAS.contains_rect(palette_area(&double)) && CANVAS.contains_rect(palette_area(&single)), "{kind:?}");
+    }
+}
+
+#[test]
+fn a_tool_click_in_the_two_column_palette_selects_the_tool() {
+    for (kind, side) in [(ThemeKind::Studio, 36.0), (ThemeKind::Pro, 30.0)] {
+        let mut h = columns_harness(kind, true, true);
+        let buttons = tool_buttons(&h, side);
+        assert!(buttons.iter().all(|b| CANVAS.contains_rect(*b)), "{kind:?}: {buttons:?}");
+        click(&mut h, buttons[1].center());
+        assert_eq!(h.state().ui.tool, Tool::RectMarquee, "{kind:?}");
+        click(&mut h, buttons[0].center());
+        assert_eq!(h.state().ui.tool, Tool::Move, "{kind:?}");
+        assert!(h.state().ui.panels.toolbar_floating && h.state().ui.panels.toolbar_double, "{kind:?}: the modes are left alone");
+    }
+}
+
+#[test]
+fn switching_columns_while_floating_keeps_the_top_left_corner() {
+    let mut h = columns_harness(ThemeKind::Studio, true, false);
+    let start = grip(&h);
+    drag(&mut h, start.center(), vec2(120.0, 60.0));
+    let before = palette_area(&h).min;
+    let pos = place(&h);
+    let ctx = h.ctx.clone();
+    for double in [true, false, true] {
+        assert_eq!(call(h.state_mut(), &ctx, "ui.set", json!({"panels": {"toolbar_double": double}}))["ok"], true);
+        h.run_steps(4);
+        assert_eq!(palette_area(&h).min, before, "double={double}: the top-left corner stays");
+        assert_eq!(place(&h), pos, "double={double}: and the remembered place");
+    }
+    // Near the bottom-right corner the wider palette is clamped, not pushed out of the canvas.
+    drag(&mut h, grip(&h).center(), vec2(3000.0, 3000.0));
+    for double in [false, true] {
+        assert_eq!(call(h.state_mut(), &ctx, "ui.set", json!({"panels": {"toolbar_double": double}}))["ok"], true);
+        h.run_steps(4);
+        assert!(CANVAS.contains_rect(palette_area(&h)), "double={double}: {:?}", palette_area(&h));
+    }
+}
+
+#[test]
+fn the_palette_stays_inside_a_small_canvas_in_both_forms() {
+    let small = Rect::from_min_max(pos2(100.0, 40.0), pos2(300.0, 400.0));
+    for double in [false, true] {
+        let mut h = columns_harness(ThemeKind::Studio, true, double);
+        h.state_mut().last_canvas_rect = small;
+        h.run_steps(4);
+        assert!(small.contains_rect(palette_area(&h)), "double={double}: {:?} in {small:?}", palette_area(&h));
+        drag(&mut h, grip(&h).center(), vec2(3000.0, 3000.0));
+        assert!(small.contains_rect(palette_area(&h)), "double={double} dragged: {:?}", palette_area(&h));
+        drag(&mut h, grip(&h).center(), vec2(-3000.0, -3000.0));
+        assert!(small.contains_rect(palette_area(&h)), "double={double} dragged back: {:?}", palette_area(&h));
+    }
+}
+
+const FOUR: [&str; 4] = ["Docked, one column", "Docked, two columns", "Floating, one column", "Floating, two columns"];
+
+/// The grip's menu (Studio has no chevron) lists the four states and each sets the right pair.
+#[test]
+fn the_grip_menu_offers_the_four_states() {
+    for (i, label) in FOUR.iter().enumerate() {
+        let (want_floating, want_double) = (i >= 2, i % 2 == 1);
+        for (start_floating, start_double) in [(true, false), (true, true)] {
+            let mut h = columns_harness(ThemeKind::Studio, start_floating, start_double);
+            h.get_by_label(GRIP_LABEL).click_secondary();
+            h.run_steps(3);
+            for other in FOUR {
+                assert!(h.query_by_label(other).is_some(), "the grip menu lists {other}");
+            }
+            h.get_by_label(label).click();
+            h.run_steps(4);
+            let p = &h.state().ui.panels;
+            assert_eq!((p.toolbar_floating, p.toolbar_double), (want_floating, want_double), "{label} from {start_floating},{start_double}");
+        }
+    }
+}
+
+/// The header chevron's menu (Pro) lists the four states and each sets the right pair.
+#[test]
+fn the_chevron_menu_offers_the_four_states() {
+    for (i, label) in FOUR.iter().enumerate() {
+        let (want_floating, want_double) = (i >= 2, i % 2 == 1);
+        for (start_floating, start_double) in [(false, false), (true, true)] {
+            let mut h = columns_harness(ThemeKind::Pro, start_floating, start_double);
+            h.get_by_label("Toolbar").click_secondary();
+            h.run_steps(3);
+            for other in FOUR {
+                assert!(h.query_by_label(other).is_some(), "the chevron menu lists {other}");
+            }
+            h.get_by_label(label).click();
+            h.run_steps(4);
+            let p = &h.state().ui.panels;
+            assert_eq!((p.toolbar_floating, p.toolbar_double), (want_floating, want_double), "{label} from {start_floating},{start_double}");
+        }
+    }
 }

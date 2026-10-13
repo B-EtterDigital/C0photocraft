@@ -409,3 +409,17 @@ fn i_sessions_bridge() {
     let gone = call(&mut app, &ctx, "c0.activate", json!({"id": first}));
     assert_eq!((gone["ok"].clone(), gone["error"].clone()), (json!(false), json!(format!("no document with id {first}"))));
 }
+
+/// Floating honours `toolbar_double`: both switches are independent and the four states are
+/// reachable through `ui.set {panels}`, floating included.
+#[test]
+fn a2_floating_honours_toolbar_double() {
+    let ctx = egui::Context::default();
+    let mut app = new_app();
+    for (floating, double) in [(true, true), (true, false), (false, true), (false, false)] {
+        ok(&mut app, &ctx, "ui.set", json!({"panels": {"toolbar_floating": floating, "toolbar_double": double}}));
+        let panels = inspect(&mut app, &ctx)["panels"].clone();
+        assert_eq!((panels["toolbar_floating"].as_bool(), panels["toolbar_double"].as_bool()), (Some(floating), Some(double)));
+    }
+    assert_eq!(photocraft_ui_egui::panels::toolbar_float::MODES.map(|(_, f, d)| (f, d)), [(false, false), (false, true), (true, false), (true, true)]);
+}

@@ -52,6 +52,7 @@ struct Float {
     place: Place,
     /// Outer width, the inner margin on both sides included.
     width: f32,
+    double: bool,
     margin: i8,
     /// Height the tools and the footer need, so the palette is no taller than its content.
     content: f32,
@@ -65,7 +66,7 @@ pub(super) fn host(app: &PhotocraftApp, ctx: &egui::Context, metrics: (f32, f32,
     let float = panels.toolbar_floating.then(|| {
         let slots: Vec<usize> = super::visible_sections(&app.session.prefs().toolbar.hidden).iter().map(Vec::len).collect();
         let content = content_height(&Tokens::get(ctx), &slots, button, panels.toolbar_double);
-        Float { canvas: app.last_canvas_rect, place: panels.toolbar_float, width, margin, content }
+        Float { canvas: app.last_canvas_rect, place: panels.toolbar_float, width, double: panels.toolbar_double, margin, content }
     });
     Host { panel, float }
 }
@@ -87,8 +88,29 @@ fn content_height(t: &Tokens, slots: &[usize], button: f32, double: bool) -> f32
     tools + footer + 4.0
 }
 
-/// A change the palette's own controls asked for: the new `toolbar_floating` and `toolbar_float`.
-pub(super) type Change = Option<(bool, Place)>;
+/// A change the palette's own controls asked for: the new `toolbar_floating`, `toolbar_double`
+/// and `toolbar_float`.
+pub(super) type Change = Option<(bool, bool, Place)>;
+
+/// The four toolbar states, as `(label, floating, double)`.
+pub const MODES: [(&str, bool, bool); 4] = [
+    ("Docked, one column", false, false),
+    ("Docked, two columns", false, true),
+    ("Floating, one column", true, false),
+    ("Floating, two columns", true, true),
+];
+
+/// The four states as selectable items; returns the one picked.
+fn mode_items(ui: &mut egui::Ui, now: (bool, bool)) -> Option<(bool, bool)> {
+    let mut picked = None;
+    for (label, floating, double) in MODES {
+        if ui.add(egui::Button::selectable(now == (floating, double), crate::i18n::t(label))).clicked() {
+            picked = Some((floating, double));
+            ui.close();
+        }
+    }
+    picked
+}
 
 impl Host {
     /// Draws `add_contents` in the panel or in the palette.
@@ -105,23 +127,19 @@ impl Host {
 
 /// Applies what the palette's controls asked for, once the tools are drawn.
 pub(super) fn settle(panels: &mut Panels, change: Change) {
-    if let Some((floating, place)) = change {
+    if let Some((floating, double, place)) = change {
         panels.toolbar_floating = floating;
+        panels.toolbar_double = double;
         panels.toolbar_float = place;
     }
 }
 
-/// The header chevron's context menu: the three toolbar modes.
+/// The header chevron's context menu: the four toolbar states.
 pub(super) fn mode_menu(chevron: &egui::Response, panels: &mut Panels) {
     egui::Popup::context_menu(chevron).show(|ui| {
         ui.set_min_width(160.0);
-        let now = (panels.toolbar_floating, panels.toolbar_double);
-        for (label, mode) in [("One Column", (false, false)), ("Two Columns", (false, true)), ("Floating", (true, now.1))] {
-            let on = if mode.0 { now.0 } else { now == mode };
-            if ui.add(egui::Button::selectable(on, crate::i18n::t(label))).clicked() {
-                (panels.toolbar_floating, panels.toolbar_double) = mode;
-                ui.close();
-            }
+        if let Some(mode) = mode_items(ui, (panels.toolbar_floating, panels.toolbar_double)) {
+            (panels.toolbar_floating, panels.toolbar_double) = mode;
         }
     });
 }
@@ -155,7 +173,7 @@ impl Float {
             .shadow(egui::Shadow { offset: [0, 8], blur: 24, spread: 0, color: t.shadow })
             .inner_margin(egui::Margin::symmetric(self.margin, MARGIN_Y as i8));
         let mut place = self.place;
-        let mut floating = true;
+        let mut mode = (true, self.double);
         // Order::Middle like the other floating panels, so menus, popups and dialogs stay above it.
         egui::Area::new(id).order(egui::Order::Middle).fixed_pos(self.canvas.min + offset).show(ctx, |ui| {
             frame.show(ui, |ui| {
@@ -183,9 +201,9 @@ impl Float {
                         place.pinned = !place.pinned;
                         ui.close();
                     }
-                    if ui.button(crate::i18n::t("Dock Toolbar")).clicked() {
-                        floating = false;
-                        ui.close();
+                    ui.separator();
+                    if let Some(picked) = mode_items(ui, mode) {
+                        mode = picked;
                     }
                 });
                 ui.vertical_centered(|ui| {
@@ -200,6 +218,6 @@ impl Float {
                 });
             });
         });
-        ((floating, place) != (true, self.place)).then_some((floating, place))
+        ((mode, place) != ((true, self.double), self.place)).then_some((mode.0, mode.1, place))
     }
 }
