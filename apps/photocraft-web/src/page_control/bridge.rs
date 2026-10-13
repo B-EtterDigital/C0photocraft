@@ -88,6 +88,27 @@ impl Pump {
         self.ran.get()
     }
 
+    /// Runs passes back to back, at most `passes` of them, until `rx` has the reply, and returns it.
+    ///
+    /// This is how synthetic input is played: the app plays one step per pass and answers after the
+    /// last, and a timer is no way to get the next pass (a throttled page runs timers about once a
+    /// minute). `None` when the reply is not there yet or a pass could not run; the caller then
+    /// waits as usual.
+    fn drive(&self, rx: &Receiver<Value>, passes: usize) -> Option<Value> {
+        for _ in 0..passes {
+            match rx.try_recv() {
+                Ok(value) => return Some(value),
+                Err(TryRecvError::Disconnected) => return None,
+                Err(TryRecvError::Empty) => {
+                    if !self.pass() {
+                        return None;
+                    }
+                }
+            }
+        }
+        rx.try_recv().ok()
+    }
+
     /// Another pass for a request that is still waiting, when the app asked for one and a display
     /// frame's time has gone by.
     fn keep_going(&self, ctx: &egui::Context) {
@@ -112,11 +133,12 @@ fn install(tx: Sender<ControlRequest>, ctx: egui::Context) {
     let call = Closure::<dyn FnMut(JsValue) -> js_sys::Promise>::new(move |text: JsValue| {
         let reply = parse(&text).and_then(|(method, params)| {
             let reads_only = super::reads_only(&method, &params);
+            let inline = super::inline_passes(&method, &params);
             let (params, palette) = take_palette(&ctx, &method, params)?;
-            Ok((submit(&tx, method, params)?, palette, reads_only))
+            Ok((submit(&tx, method, params)?, palette, reads_only, inline))
         });
         match reply {
-            Ok((rx, palette, reads_only)) => {
+            Ok((rx, palette, reads_only, inline)) => {
                 // Answer now, in a pass of our own, instead of on the display's next frame.
                 let pump = Pump::get();
                 if !pump.as_ref().is_some_and(Pump::pass) {
@@ -126,7 +148,9 @@ fn install(tx: Sender<ControlRequest>, ctx: egui::Context) {
                     // Show the change. A delayed request is one frame; an immediate one is two.
                     ctx.request_repaint_after(std::time::Duration::from_millis(1));
                 }
-                wasm_bindgen_futures::future_to_promise(wait(rx, ctx.clone(), palette, pump))
+                // Synthetic input: play its steps now, in passes of our own, not on a timer.
+                let early = pump.as_ref().filter(|_| inline > 0).and_then(|pump| pump.drive(&rx, inline));
+                wasm_bindgen_futures::future_to_promise(wait(rx, ctx.clone(), palette, pump, early))
             }
             Err(error) => js_sys::Promise::resolve(&JsValue::from_str(&encode(&json!({"ok": false, "error": error})))),
         }
@@ -181,7 +205,13 @@ fn submit(tx: &Sender<ControlRequest>, method: String, params: Value) -> Result<
     Ok(rx)
 }
 
-async fn wait(rx: Receiver<Value>, ctx: egui::Context, mut palette: Option<Palette>, pump: Option<Pump>) -> Result<JsValue, JsValue> {
+async fn wait(rx: Receiver<Value>, ctx: egui::Context, mut palette: Option<Palette>, pump: Option<Pump>, early: Option<Value>) -> Result<JsValue, JsValue> {
+    if let Some(mut value) = early {
+        if let Some(palette) = palette.take() {
+            settle(&ctx, &mut value, palette);
+        }
+        return Ok(JsValue::from_str(&encode(&value)));
+    }
     loop {
         match rx.try_recv() {
             Ok(mut value) => {

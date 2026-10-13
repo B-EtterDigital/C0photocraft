@@ -3479,7 +3479,7 @@ fn paint_mapped_quad(painter: &egui::Painter, xf: &ViewXform, size: [f32; 2], co
 /// Draw boundary segments as marching ants: white base, black dashes phased along x + y.
 fn marching_ants_segments(painter: &egui::Painter, xf: &ViewXform, segs: &[crate::outline::Segment], time: f64) {
     let dash = 4.0f32;
-    let phase = ((time * 10.0) % (dash as f64 * 2.0)) as f32;
+    let phase = crate::c0_ants::phase_at(time, painter.ctx().pixels_per_point());
     let white = Stroke::new(1.0, Color32::WHITE);
     let black = Stroke::new(1.0, Color32::BLACK);
     let clip = painter.clip_rect();

@@ -23,8 +23,16 @@
 //! - A request that only reads ([`reads_only`]) asks for no frame at all. What its pass laid out is
 //!   painted with the next frame something else asks for.
 //! - Any other request asks for one frame afterwards, so the change is seen.
-//! - A request that needs several passes (synthetic input such as `ui.click`, a job the caller waits
-//!   for) gets them at up to [`PUMP_MS`] apart while it waits, again without the display.
+//! - A request of synthetic input (`ui.click`, `ui.move`, `ui.key`, `ui.type`, `ui.pointer`: see
+//!   [`is_synthetic_input`]) is queued by the pass that reads it and played one step per pass, and
+//!   its reply waits for the last step. Those passes are run inside the same call, back to back,
+//!   up to [`inline_passes`] of them: a timer cannot be relied on to wake the page, because a page
+//!   the browser throttles (hidden, or not presented) runs timers about once a minute, and a click
+//!   that waited for the timer waited that long. Nothing needs a painted frame for the input to
+//!   reach the app; eframe's `raw_input_hook` runs in every pass, painted or not.
+//! - A job the caller waits for gets its passes at up to [`PUMP_MS`] apart while it waits, again
+//!   without the display. Whatever input is still unplayed after the inline passes is finished the
+//!   same way.
 //! - `ui.screenshot` reads pixels the display painted, so it waits for painted frames as before.
 //! - Before the app has started, or if a pass cannot be run, the request falls back to waking the
 //!   app and waiting for its next frame.
@@ -77,6 +85,32 @@ pub fn reads_only(method: &str, params: &Value) -> bool {
         "engine.execute" => params.get("command").and_then(Value::as_str).is_some_and(|command| READ_COMMANDS.contains(&command)),
         _ => false,
     }
+}
+
+/// The control requests that queue synthetic input (`photocraft_ui_egui::control`): the app plays
+/// them one step per pass and answers after the last, so their reply is never ready after the first
+/// pass. `ui.pointer` is answered by the pass that reads it, but it is in the family: it feeds the
+/// same tools and a caller treats the five alike.
+pub const SYNTHETIC_INPUT: &[&str] = &["ui.click", "ui.move", "ui.key", "ui.type", "ui.pointer"];
+
+/// The most passes run inside one call for a synthetic input request; what is left is played while
+/// the request waits ([`pump_due`]), so a `count` of 256 does not stall the page.
+pub const MAX_INLINE_PASSES: usize = 32;
+
+/// Whether `method` is a synthetic input request.
+pub fn is_synthetic_input(method: &str) -> bool {
+    SYNTHETIC_INPUT.contains(&method)
+}
+
+/// The passes to run inside the call after the one that read the request: one per step the app
+/// plays (a click is one step, so `count` clicks are `count`), one more to answer, at most
+/// [`MAX_INLINE_PASSES`]. None for any other request.
+pub fn inline_passes(method: &str, params: &Value) -> usize {
+    if !is_synthetic_input(method) {
+        return 0;
+    }
+    let steps = if method == "ui.click" { params.get("count").and_then(Value::as_u64).unwrap_or(1) } else { 1 };
+    (steps.saturating_add(1) as usize).min(MAX_INLINE_PASSES)
 }
 
 /// Whether a request that is still waiting gets another pass now: the app asked for a repaint and
@@ -144,6 +178,37 @@ mod tests {
         ] {
             assert!(!reads_only(method, &params), "{method} {params}");
         }
+    }
+
+    /// A synthetic input request is not through after its first pass, so the bridge must give it
+    /// passes inside the call. Every method that queues input is in the rule; nothing else is.
+    #[test]
+    fn every_synthetic_input_method_gets_inline_passes() {
+        for (method, params) in [
+            ("ui.move", json!({"x": 10, "y": 10})),
+            ("ui.click", json!({"x": 1, "y": 1})),
+            ("ui.key", json!({"key": "A"})),
+            ("ui.type", json!({"text": "x"})),
+            ("ui.pointer", json!({"events": []})),
+        ] {
+            assert!(is_synthetic_input(method), "{method}");
+            assert!(inline_passes(method, &params) >= 2, "{method}: one pass to queue, one to play, and one to answer");
+            assert!(!reads_only(method, &params), "{method} changes the screen: it asks for a frame");
+        }
+        for method in ["ui.inspect", "ui.set", "ui.menu.invoke", "ui.screenshot", "engine.execute", "c0.place", "ui.clicks", ""] {
+            assert!(!is_synthetic_input(method), "{method}");
+            assert_eq!(inline_passes(method, &json!({"count": 9})), 0, "{method}");
+        }
+    }
+
+    #[test]
+    fn a_click_gets_a_pass_for_each_of_its_clicks_up_to_the_cap() {
+        assert_eq!(inline_passes("ui.click", &json!({"x": 1, "y": 1})), 2);
+        assert_eq!(inline_passes("ui.click", &json!({"x": 1, "y": 1, "count": 2})), 3);
+        assert_eq!(inline_passes("ui.click", &json!({"count": 3})), 4);
+        assert_eq!(inline_passes("ui.click", &json!({"count": 256})), MAX_INLINE_PASSES);
+        assert_eq!(inline_passes("ui.click", &json!({"count": u64::MAX})), MAX_INLINE_PASSES);
+        assert_eq!(inline_passes("ui.click", &json!({"count": "x"})), 2, "a bad count is the app's to refuse");
     }
 
     #[test]

@@ -184,8 +184,8 @@ pub fn ants(points: &[Pos2], closed: bool, phase: f32) -> Vec<Shape> {
 /// Marching-ants phase for the frame time `time` (s), and keep the animation running.
 pub fn ants_phase(ctx: &egui::Context) -> f32 {
     let time = ctx.input(|i| i.time);
-    ctx.request_repaint_after(std::time::Duration::from_millis(100));
-    ((time * 10.0) % (DASH as f64 * 2.0)) as f32
+    ctx.request_repaint_after(std::time::Duration::from_secs_f64(crate::c0_ants::until_next_tick(time)));
+    crate::c0_ants::phase_at(time, ctx.pixels_per_point())
 }
 
 /// Draw animated marching ants along `points`.
