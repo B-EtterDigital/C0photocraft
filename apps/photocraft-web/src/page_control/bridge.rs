@@ -15,8 +15,6 @@ use wasm_bindgen::prelude::*;
 
 /// The function the page calls.
 pub const PAGE_FUNCTION: &str = "__photocraftControl";
-/// The largest request accepted, as on the desktop socket.
-const MAX_REQUEST_BYTES: usize = 1024 * 1024;
 /// How often a waiting request checks for its reply.
 const POLL_MS: i32 = 4;
 /// The `ui.set` field that carries the host's palette.
@@ -143,11 +141,14 @@ fn install(tx: Sender<ControlRequest>, ctx: egui::Context) {
 
 fn parse(text: &JsValue) -> Result<(String, Value), String> {
     let Some(text) = text.as_string() else { return Err("the request must be JSON text".into()) };
-    if text.len() > MAX_REQUEST_BYTES {
-        return Err("the request is larger than 1 MiB".into());
+    if text.len() > super::C0_MAX_REQUEST_BYTES {
+        return Err(format!("the request is larger than {} MiB", super::C0_MAX_REQUEST_BYTES >> 20));
     }
     let value: Value = serde_json::from_str(&text).map_err(|e| format!("the request is not JSON: {e}"))?;
     let Some(method) = value.get("method").and_then(Value::as_str) else { return Err("the request has no method".into()) };
+    if text.len() > super::request_limit(method) {
+        return Err("the request is larger than 1 MiB".into());
+    }
     Ok((method.to_owned(), value.get("params").cloned().unwrap_or(Value::Null)))
 }
 

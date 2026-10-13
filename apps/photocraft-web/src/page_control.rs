@@ -29,6 +29,14 @@
 //! - Before the app has started, or if a pass cannot be run, the request falls back to waking the
 //!   app and waiting for its next frame.
 //!
+//! ## The host's `c0.*` requests
+//!
+//! `c0.capture`, `c0.selectionMask`, `c0.place`, `c0.openFile` and `c0.cancelFileDialog` carry or
+//! return images as base64 and are answered by the app like any other request
+//! (`photocraft_ui_egui::c0_generative`, which a native test runs). Because they carry files, a
+//! request of this family may be up to [`C0_MAX_REQUEST_BYTES`] long; any other request keeps the
+//! desktop socket's 1 MiB ([`request_limit`]). `c0.capture` and `c0.selectionMask` only read.
+//!
 //! One field is the page's own: `ui.set {themeTokens: {...}}` lays the embedding host's colours and
 //! radii over the chosen preset (`photocraft_ui_egui::theme::host`). It is taken out of the request
 //! here, the rest of `ui.set` goes to the app unchanged, and the reply's `result` becomes
@@ -45,6 +53,16 @@ pub use bridge::{attach, runner};
 /// display frame, so a waiting request costs no more passes than a window on screen would.
 pub const PUMP_MS: f64 = 16.0;
 
+/// The largest ordinary request, as on the desktop socket.
+pub const MAX_REQUEST_BYTES: usize = 1024 * 1024;
+/// The largest `c0.*` request: it carries a file or an image as base64 (a PSD of 48 MiB is 64 MiB).
+pub const C0_MAX_REQUEST_BYTES: usize = 96 * 1024 * 1024;
+
+/// The most bytes a request of `method` may be.
+pub fn request_limit(method: &str) -> usize {
+    if method.starts_with("c0.") { C0_MAX_REQUEST_BYTES } else { MAX_REQUEST_BYTES }
+}
+
 /// `engine.execute` commands that only read.
 const READ_COMMANDS: &[&str] = &["document.inspect", "session.inspect", "document.pixel"];
 
@@ -52,7 +70,7 @@ const READ_COMMANDS: &[&str] = &["document.inspect", "session.inspect", "documen
 /// asked for on its behalf. Anything not listed here is taken to change something.
 pub fn reads_only(method: &str, params: &Value) -> bool {
     match method {
-        "ui.inspect" | "ui.menu.list" | "engine.commands" => true,
+        "ui.inspect" | "ui.menu.list" | "engine.commands" | "c0.capture" | "c0.selectionMask" => true,
         "engine.execute" => params.get("command").and_then(Value::as_str).is_some_and(|command| READ_COMMANDS.contains(&command)),
         _ => false,
     }
@@ -80,8 +98,28 @@ mod tests {
             ("engine.execute", json!({"command": "document.inspect"})),
             ("engine.execute", json!({"command": "session.inspect", "params": {}})),
             ("engine.execute", json!({"command": "document.pixel", "params": {"x": 1, "y": 1}})),
+            ("c0.capture", json!({"scope": "document"})),
+            ("c0.selectionMask", json!({"rect": {"x": 0, "y": 0, "width": 4, "height": 4}})),
         ] {
             assert!(reads_only(method, &params), "{method} {params}");
+        }
+    }
+
+    #[test]
+    fn c0_requests_may_carry_files_and_others_may_not() {
+        assert_eq!(request_limit("c0.openFile"), C0_MAX_REQUEST_BYTES);
+        assert_eq!(request_limit("c0.place"), C0_MAX_REQUEST_BYTES);
+        for method in ["ui.set", "engine.execute", "c0", "xc0.place", ""] {
+            assert_eq!(request_limit(method), MAX_REQUEST_BYTES, "{method}");
+        }
+        assert!(C0_MAX_REQUEST_BYTES > 64 * 1024 * 1024, "room for a 48 MiB file as base64");
+    }
+
+    /// What changes the document or the dialog state asks for a frame.
+    #[test]
+    fn c0_requests_that_change_something_ask_for_a_frame() {
+        for method in ["c0.place", "c0.openFile", "c0.cancelFileDialog"] {
+            assert!(!reads_only(method, &json!({})), "{method}");
         }
     }
 

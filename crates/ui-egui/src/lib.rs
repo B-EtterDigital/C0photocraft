@@ -46,6 +46,7 @@ pub mod clip_line_ui;
 pub mod color_picker_ui;
 pub mod color_range_ui;
 pub mod comps_ui;
+pub mod c0_generative;
 pub mod control;
 pub mod credits;
 pub mod crop_mode;

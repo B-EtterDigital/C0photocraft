@@ -310,3 +310,54 @@ fn g_studio_themes_draw_no_home_button() {
         assert!(!shows_home(kind), "{kind:?} draws a Home button");
     }
 }
+
+/// (h) The five `c0.*` requests the host's image-generation panel sends: they exist under these
+/// names, take these parameters and reply with these fields. The rules behind them are tested in
+/// `c0_generative_bridge.rs`; this is the shape the host reads.
+#[test]
+fn h_generative_bridge_commands() {
+    use base64::Engine as _;
+    assert_eq!(
+        photocraft_ui_egui::c0_generative::METHODS,
+        ["c0.capture", "c0.selectionMask", "c0.place", "c0.openFile", "c0.cancelFileDialog"],
+        "the host calls exactly these"
+    );
+    let services = photocraft_ui_egui::Services {
+        import: Some(Box::new(|name: &str, bytes: &[u8], depth: usize| {
+            photocraft_io::import_with_svg_group_depth(name, bytes, depth).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
+        })),
+        ..Default::default()
+    };
+    let ctx = egui::Context::default();
+    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+    let b64 = |bytes: &[u8]| base64::engine::general_purpose::STANDARD.encode(bytes);
+    let image = photocraft_codecs::Image::from_u8(2, 2, photocraft_codecs::ChannelLayout::Rgba, [10u8, 20, 30, 255].repeat(4)).unwrap();
+    let png = photocraft_codecs::encode(&image, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+
+    // The first document comes from c0.openFile.
+    let opened = ok(&mut app, &ctx, "c0.openFile", json!({"name": "start.png", "bytes": b64(&png)}));
+    assert_eq!(opened["document"], 0);
+
+    let capture = ok(&mut app, &ctx, "c0.capture", json!({"scope": "document", "maxSide": 0}));
+    has_keys(&capture, &["png", "rect", "scale"], "c0.capture");
+    has_keys(&capture["rect"], &["x", "y", "width", "height"], "c0.capture rect");
+    assert!(capture["png"].is_string() && capture["scale"].is_number(), "{capture}");
+    assert!(!capture["png"].as_str().unwrap().starts_with("data:"), "no data: prefix");
+
+    execute(&mut app, &ctx, "select.rect", json!({"x": 0, "y": 0, "width": 1, "height": 2}));
+    let selection = ok(&mut app, &ctx, "c0.capture", json!({"scope": "selection"}));
+    assert_eq!(selection["rect"], json!({"x": 0, "y": 0, "width": 1, "height": 2}));
+    let mask = ok(&mut app, &ctx, "c0.selectionMask", json!({"rect": {"x": 0, "y": 0, "width": 2, "height": 2}}));
+    has_keys(&mask, &["png"], "c0.selectionMask");
+
+    let placed = ok(&mut app, &ctx, "c0.place", json!({"png": b64(&png), "name": "Generated", "rect": null, "clipToSelection": true}));
+    assert!(placed["layer"].is_u64(), "{placed}");
+    let document = ok(&mut app, &ctx, "c0.place", json!({"png": b64(&png), "name": "Generated 2", "asDocument": true}));
+    assert!(document["document"].is_u64(), "{document}");
+
+    let cancelled = ok(&mut app, &ctx, "c0.cancelFileDialog", json!({}));
+    assert!(cancelled["cancelled"].is_boolean(), "{cancelled}");
+
+    let unknown = call(&mut app, &ctx, "c0.nope", json!({}));
+    assert_eq!(unknown["ok"], false, "{unknown}");
+}

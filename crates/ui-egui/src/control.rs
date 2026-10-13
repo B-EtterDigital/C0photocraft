@@ -328,6 +328,7 @@ fn dispatch(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest) 
     let u = |k: &str| p.get(k).and_then(Value::as_u64);
     let wait = p.get("wait").and_then(Value::as_bool).unwrap_or(true);
     match req.method.as_str() {
+        method if method.starts_with("c0.") => wrap(crate::c0_generative::handle(app, method, p)),
         "ui.context.choose" => {
             let Some(id) = s("id") else { return err("missing `id`") };
             let Some(menu) = app.ui.canvas_tool_menu.as_ref() else { return err("no canvas context menu is open") };
