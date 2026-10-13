@@ -284,9 +284,9 @@ pub fn report_smart_result(app: &mut PhotocraftApp, res: Result<Value, String>, 
 
 /// ⌥-click with Clone Stamp / Healing Brush sets the source.
 pub fn set_source(app: &mut PhotocraftApp, x: f64, y: f64) {
-    app.ui.clone_source = Some([x.round(), y.round()]);
+    app.ui.clone_source = Some([x, y]);
     app.ui.clone_offset = None;
-    let _ = app.run("cloneSource.set", json!({"source": [x.round(), y.round()]}));
+    let _ = app.run("cloneSource.set", json!({"source": [x, y]}));
     app.ui.status = format!("Clone source set at {:.0}, {:.0}", x, y);
     app.ui.status_error = false;
 }
