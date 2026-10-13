@@ -41,14 +41,14 @@ const MAX_SIDE: i64 = 32_768;
 const MAX_PIXELS: u64 = 120_000_000;
 
 /// Answers a `c0.*` request.
-pub fn handle(app: &mut PhotocraftApp, method: &str, params: &Value) -> Result<Value, String> {
+pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, method: &str, params: &Value) -> Result<Value, String> {
     match method {
         "c0.capture" => capture(app, params),
         "c0.selectionMask" => selection_mask(app, params),
         "c0.place" => place(app, params),
         "c0.openFile" => open_file(app, params),
         "c0.cancelFileDialog" => Ok(json!({"cancelled": cancel_file_dialog(app)})),
-        other => Err(format!("unknown method `{other}`")),
+        other => crate::c0_sessions::handle(app, ctx, other, params),
     }
 }
 
@@ -62,6 +62,11 @@ pub fn cancel_file_dialog(app: &mut PhotocraftApp) -> bool {
 }
 
 // ---------- parameters ----------
+
+/// The document a request acts on: the one its `id` names, else the active one.
+fn document(app: &PhotocraftApp, p: &Value) -> Result<usize, String> {
+    crate::c0_sessions::target_index(app, p)
+}
 
 fn text(p: &Value, key: &str) -> Result<String, String> {
     match p.get(key) {
@@ -149,7 +154,7 @@ fn capture(app: &PhotocraftApp, p: &Value) -> Result<Value, String> {
         None | Some(Value::Null) => 0,
         Some(v) => u32::try_from(whole(v, "maxSide")?.max(0)).map_err(|_| "maxSide is too large".to_owned())?,
     };
-    let doc = &app.session.active().ok_or(NO_DOCUMENT)?.doc;
+    let doc = &app.session.documents()[document(app, p)?].doc;
     let rect = if scope == "document" { doc.bounds() } else { selection_bounds(doc)? };
     let (rw, rh) = (rect.width(), rect.height());
     let longest = rw.max(rh);
@@ -177,7 +182,7 @@ fn capture(app: &PhotocraftApp, p: &Value) -> Result<Value, String> {
 
 fn selection_mask(app: &PhotocraftApp, p: &Value) -> Result<Value, String> {
     let rect = rect_param(p.get("rect").unwrap_or(&Value::Null), "rect")?;
-    let doc = &app.session.active().ok_or(NO_DOCUMENT)?.doc;
+    let doc = &app.session.documents()[document(app, p)?].doc;
     // Checked after the document so the error names what is missing first.
     selection_bounds(doc)?;
     let selection = doc.selection.as_ref().ok_or(NO_SELECTION)?;
@@ -231,6 +236,15 @@ fn image_surface(width: u32, height: u32, rgba: &[u8], target: Rect, format: Pix
 }
 
 fn place(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
+    // A layer goes into the document `id` names without changing the active tab.
+    if p.get("id").is_some_and(|v| !v.is_null()) && !flag(p, "asDocument")? {
+        let doc_id = app.session.documents()[document(app, p)?].doc.id;
+        return app.with_document(doc_id, |app| place_in_active(app, p));
+    }
+    place_in_active(app, p)
+}
+
+fn place_in_active(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
     let name = text(p, "name")?;
     let as_document = flag(p, "asDocument")?;
     let clip = flag(p, "clipToSelection")?;
@@ -278,7 +292,7 @@ fn open_as_document(app: &mut PhotocraftApp, name: &str, png: &[u8]) -> Result<V
         Arc::make_mut(&mut st.doc).name = name.to_owned();
     }
     app.sync_views();
-    Ok(json!({"document": index}))
+    Ok(json!({"document": index, "id": crate::c0_sessions::id_of(app, index)}))
 }
 
 // ---------- c0.openFile ----------
@@ -299,5 +313,5 @@ fn open_file(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
     let name = text(p, "name")?;
     let bytes = bytes_param(p, "bytes")?;
     let index = open_bytes(app, &name, &bytes)?;
-    Ok(json!({"document": index}))
+    Ok(json!({"document": index, "id": crate::c0_sessions::id_of(app, index)}))
 }

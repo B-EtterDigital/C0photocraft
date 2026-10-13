@@ -35,7 +35,10 @@
 //! return images as base64 and are answered by the app like any other request
 //! (`photocraft_ui_egui::c0_generative`, which a native test runs). Because they carry files, a
 //! request of this family may be up to [`C0_MAX_REQUEST_BYTES`] long; any other request keeps the
-//! desktop socket's 1 MiB ([`request_limit`]). `c0.capture` and `c0.selectionMask` only read.
+//! desktop socket's 1 MiB ([`request_limit`]). `c0.capture`, `c0.selectionMask` and
+//! `c0.documentBytes` only read. The sessions requests (`c0.activate`, `c0.close`, `c0.tabs`,
+//! `c0.documentBytes`; `photocraft_ui_egui::c0_sessions`) are the same family; the tab filter and
+//! activation change what is on screen, so those ask for a frame.
 //!
 //! One field is the page's own: `ui.set {themeTokens: {...}}` lays the embedding host's colours and
 //! radii over the chosen preset (`photocraft_ui_egui::theme::host`). It is taken out of the request
@@ -70,7 +73,7 @@ const READ_COMMANDS: &[&str] = &["document.inspect", "session.inspect", "documen
 /// asked for on its behalf. Anything not listed here is taken to change something.
 pub fn reads_only(method: &str, params: &Value) -> bool {
     match method {
-        "ui.inspect" | "ui.menu.list" | "engine.commands" | "c0.capture" | "c0.selectionMask" => true,
+        "ui.inspect" | "ui.menu.list" | "engine.commands" | "c0.capture" | "c0.selectionMask" | "c0.documentBytes" => true,
         "engine.execute" => params.get("command").and_then(Value::as_str).is_some_and(|command| READ_COMMANDS.contains(&command)),
         _ => false,
     }
@@ -100,6 +103,7 @@ mod tests {
             ("engine.execute", json!({"command": "document.pixel", "params": {"x": 1, "y": 1}})),
             ("c0.capture", json!({"scope": "document"})),
             ("c0.selectionMask", json!({"rect": {"x": 0, "y": 0, "width": 4, "height": 4}})),
+            ("c0.documentBytes", json!({"id": 1})),
         ] {
             assert!(reads_only(method, &params), "{method} {params}");
         }
@@ -118,7 +122,7 @@ mod tests {
     /// What changes the document or the dialog state asks for a frame.
     #[test]
     fn c0_requests_that_change_something_ask_for_a_frame() {
-        for method in ["c0.place", "c0.openFile", "c0.cancelFileDialog"] {
+        for method in ["c0.place", "c0.openFile", "c0.cancelFileDialog", "c0.activate", "c0.close", "c0.tabs"] {
             assert!(!reads_only(method, &json!({})), "{method}");
         }
     }

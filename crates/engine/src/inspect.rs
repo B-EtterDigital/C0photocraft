@@ -8,8 +8,10 @@ use crate::{DocState, Session};
 pub fn session(s: &Session) -> Value {
     json!({
         "active": s.active_index(),
+        "visible": s.visible(),
         "documents": s.documents().iter().enumerate().map(|(i, d)| json!({
             "index": i,
+            "id": d.uid,
             "name": d.doc.name,
             "path": d.path,
             "width": d.doc.size.width,

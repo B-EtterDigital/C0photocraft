@@ -15,6 +15,7 @@ mod allocation;
 pub mod analysis_cmds;
 pub mod artboard_cmds;
 pub mod automate_cmds;
+mod c0_sessions;
 pub mod background_cmds;
 pub mod brush_cmds;
 pub mod brush_key_cmds;
@@ -207,6 +208,8 @@ pub struct DocState {
     /// A floating selection (`select.float`): the cut piece and where it floats, until dropped
     /// (view state: the document is unchanged until `select.drop`).
     pub floating: Option<float_cmds::Floating>,
+    /// Host tab id: the same from open to close, never reused in this run (`c0_sessions`).
+    pub uid: u64,
 }
 
 impl DocState {
@@ -232,6 +235,7 @@ impl DocState {
             fx_collapsed: Vec::new(),
             show_only: None,
             floating: None,
+            uid: c0_sessions::next_uid(),
         }
     }
     /// The selected layers in bottom-to-top document order, always including the active layer.
@@ -386,6 +390,8 @@ pub struct Session {
     /// A finished live stroke offered to the `paint.stroke` / `paint.pencil` that commits it
     /// ([`Session::offer_live_stroke`]).
     pub(crate) live_commit: Option<brush_cmds::LiveCommit>,
+    /// Host tab filter: the `uid`s whose tabs show (`None`: all; see `c0_sessions`).
+    visible: Option<Vec<u64>>,
 }
 
 /// Move item `i` of `v` to position `to`, clamped to the end. Returns where it went; `None` when
@@ -449,6 +455,7 @@ impl Session {
         self.docs.push(st);
         let i = self.docs.len() - 1;
         self.active = Some(i);
+        self.join_visible(i);
         i
     }
 
@@ -471,6 +478,7 @@ impl Session {
                 _ => index.min(self.docs.len() - 1),
             })
         };
+        self.settle_visible();
         Some(d)
     }
 

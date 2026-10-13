@@ -556,9 +556,8 @@ pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id:
         }
         "window.nextDocument" | "window.previousDocument" => {
             // Tabs are in document order, so the next tab is the next document, wrapping around.
-            let n = app.session.documents().len();
             let at = app.session.active_index().ok_or("no document open")?;
-            let to = if id == "window.nextDocument" { (at + 1) % n } else { (at + n - 1) % n };
+            let to = app.session.cycle_visible(at, id == "window.nextDocument");
             app.session.set_active(to);
             app.jobs.focus = None;
             Ok(json!({"document": to}))

@@ -361,3 +361,51 @@ fn h_generative_bridge_commands() {
     let unknown = call(&mut app, &ctx, "c0.nope", json!({}));
     assert_eq!(unknown["ok"], false, "{unknown}");
 }
+
+/// (i) The sessions requests: ids in `ui.inspect`, the tab filter, activate, close and the bytes of a
+/// document (`c0_sessions_bridge.rs` has the behaviour; this is the contract the host reads).
+#[test]
+fn i_sessions_bridge() {
+    assert_eq!(
+        photocraft_ui_egui::c0_sessions::METHODS,
+        ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes"],
+        "the host calls exactly these"
+    );
+    let ctx = egui::Context::default();
+    let mut app = new_app();
+    execute(&mut app, &ctx, "file.new", json!({"width": 12, "height": 9, "name": "first"}));
+    execute(&mut app, &ctx, "file.new", json!({"width": 14, "height": 7, "name": "second"}));
+
+    // Every document of `ui.inspect().session.documents[]` has a numeric id, and `session.visible` is null.
+    let state = inspect(&mut app, &ctx);
+    let docs = state["session"]["documents"].as_array().unwrap();
+    for d in docs {
+        has_keys(d, &["index", "id", "name", "width", "height", "dirty", "path", "revision"], "session.documents[]");
+        assert!(d["id"].is_u64(), "{d}");
+    }
+    assert_ne!(docs[0]["id"], docs[1]["id"]);
+    assert!(state["session"].as_object().unwrap().contains_key("visible") && state["session"]["visible"].is_null(), "{}", state["session"]);
+    let (first, second) = (docs[0]["id"].as_u64().unwrap(), docs[1]["id"].as_u64().unwrap());
+
+    let tabs = ok(&mut app, &ctx, "c0.tabs", json!({"visible": [first]}));
+    has_keys(&tabs, &["visible", "active"], "c0.tabs");
+    assert_eq!((tabs["visible"].clone(), tabs["active"].clone()), (json!([first]), json!(first)));
+    assert_eq!(inspect(&mut app, &ctx)["session"]["visible"], json!([first]));
+    let all = ok(&mut app, &ctx, "c0.tabs", json!({"visible": null}));
+    assert!(all["visible"].is_null() && all["active"].is_u64(), "{all}");
+
+    let activated = ok(&mut app, &ctx, "c0.activate", json!({"id": second}));
+    has_keys(&activated, &["id", "document"], "c0.activate");
+    assert_eq!(activated["document"], 1);
+
+    let bytes = ok(&mut app, &ctx, "c0.documentBytes", json!({"id": first, "format": "pcraft"}));
+    has_keys(&bytes, &["name", "format", "bytes", "revision"], "c0.documentBytes");
+    assert!(bytes["bytes"].is_string() && bytes["revision"].is_u64(), "{bytes}");
+    assert_eq!((bytes["name"].as_str(), bytes["format"].as_str()), (Some("first"), Some("pcraft")));
+
+    let closed = ok(&mut app, &ctx, "c0.close", json!({"id": first, "discard": true}));
+    has_keys(&closed, &["id", "closed", "prompt"], "c0.close");
+    assert_eq!(closed["closed"], true);
+    let gone = call(&mut app, &ctx, "c0.activate", json!({"id": first}));
+    assert_eq!((gone["ok"].clone(), gone["error"].clone()), (json!(false), json!(format!("no document with id {first}"))));
+}
