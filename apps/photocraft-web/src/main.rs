@@ -25,7 +25,7 @@ mod indexed_presets;
 #[cfg(target_arch = "wasm32")]
 mod web;
 
-#[cfg(all(target_arch = "wasm32", feature = "page-control"))]
+#[cfg(any(all(target_arch = "wasm32", feature = "page-control"), test))]
 mod page_control;
 
 #[cfg(target_arch = "wasm32")]

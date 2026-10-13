@@ -72,7 +72,10 @@ pub fn start() {
             }
         };
         let pen_target = canvas.clone();
-        let result = eframe::WebRunner::new()
+        let runner = eframe::WebRunner::new();
+        #[cfg(feature = "page-control")]
+        crate::page_control::runner(&runner);
+        let result = runner
             .start(
                 canvas,
                 options,
