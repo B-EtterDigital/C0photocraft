@@ -14,13 +14,16 @@ Only allowed to go down. Each line names the reason and whether it was offered u
 | `crates/ui-egui/src/dialogs.rs` | 2 (+5 re-indented) | About links behind the switch | Same | Not yet |
 | `crates/ui-egui/src/workspace_ui.rs` | 1 | workspaces do not save the switch | Same, as for `menu_bar` and `rail` | Not yet |
 | `crates/ui-egui/src/theme.rs` | 5 (2 removed) | 1: `pub mod host;` declares our `theme/host.rs`. 1 (replacing 1): `apply` takes its tokens through `host::resolve`. 3 (replacing 1): the gate `#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]` moves from the whole `live` module onto its `SystemTime` import, `LiveTokens` and `impl LiveTokens` | The host sets PhotoCraft's colours and radii at run time (`ui.set {themeTokens}`), in the browser release build. `apply` is the one place every preset change, new document and first frame goes through, so the palette stays in force there and egui's widget visuals follow it. `live::apply_overrides` and its `color` helper are upstream's own token list and parser; only the file polling stays debug-only | Not yet (a generic run-time token override) |
+| `crates/ui-egui/src/control.rs` | 1 | one arm at the top of `dispatch`: a method starting with `c0.` goes to `c0_generative::handle` | The host's capture, selection mask, place, open-from-bytes and cancel-dialog requests (`ui-egui/src/c0_generative.rs`, ours) need the app, which only `control::handle` has; one arm keeps every rule in our file and lets a native test run them | Not yet |
+| `crates/ui-egui/src/lib.rs` | 1 | `pub mod c0_generative;` | Declares our file | Not yet |
 
-Total: 40 added lines in 10 files (1 more blank, 9 more re-indented, 4 replaced in place, 2 removed).
-Was 25 added lines in 8 files before 2026-10-13: +3 in `web.rs`, +8 in `state.rs`, +4 in `panels.rs`
+Total: 42 added lines in 12 files (1 more blank, 9 more re-indented, 4 replaced in place, 2 removed).
+Was 40 added lines in 10 files before the `c0.*` requests (2026-10-13, +1 in `control.rs`, +1 in `lib.rs`, both new to the list).
+Was 25 added lines in 8 files before the toolbar and clone changes (2026-10-13): +3 in `web.rs`, +8 in `state.rs`, +4 in `panels.rs`
 (new to the list), and `retouch_ui.rs` (new to the list) with two lines replaced and none added.
 
 New files of ours (no debt): `apps/photocraft-web/src/page_control.rs`,
-`apps/photocraft-web/src/page_control/bridge.rs`, `crates/ui-egui/src/theme/host.rs`,
+`apps/photocraft-web/src/page_control/bridge.rs`, `crates/ui-egui/src/c0_generative.rs`, `crates/ui-egui/src/theme/host.rs`,
 `crates/ui-egui/src/panels/toolbar_float.rs`, `crates/ui-egui/tests/c0_*.rs`, `c0/photocraft-host/`.
 
 ## Couplings without an edited line (re-check on every pull)
@@ -34,4 +37,7 @@ New files of ours (no debt): `apps/photocraft-web/src/page_control.rs`,
 | `panels/toolbar_float.rs` `Float::show` | `PhotocraftApp.last_canvas_rect` (the canvas area of the last frame, as upstream's own floating panels use it) | `floating_toolbar_gives_the_canvas_the_freed_width` |
 | `page_control/bridge.rs` `Pump` | eframe's web runner: `WebRunner::add_event_listener` lending the app runner to a listener, and `AppRunner::logic()` running one unpainted pass (eframe 0.36.2) | Compiled for `wasm32` by the web build; not run by any test. `page_control::tests::the_web_shell_hands_its_runner_to_the_bridge` checks `web.rs` still gives the bridge the runner |
 | `page_control.rs` `reads_only` | which control requests change nothing on screen | `c0_control_passes.rs` `a_read_is_answered_by_one_pass_that_asks_for_no_frame` runs each listed request |
+| `c0_generative.rs` `capture` | `photocraft_compose::render_reduced_rect` (the renderer behind `doc.render` and thumbnails) and `Rect`'s `u32` sizes | `capture_*` and `max_side_downsizes_*` in `c0_generative_bridge.rs` |
+| `c0_generative.rs` `place`, `open_*` | `Session::edit` (one history step), `Layer::new`, `LayerMask`, `PhotocraftApp::open_bytes` (synchronous when `background_jobs` is off, as in the web build) and the `file_dialog` field | `place_*`, `clip_to_selection_*`, `open_file_*`, `cancel_file_dialog_*` in `c0_generative_bridge.rs` |
+| `c0_generative.rs` `image_surface` | `photocraft_algo::resample::resize_surface_in_canvas` repeating edge pixels outwards (without it a 1-pixel image fades at the border) | `place_scales_the_image_to_cover_the_rect` |
 | the host app (C0X) | panel switches, theme tokens, `ui.inspect` fields, command ids, menu entries | `crates/ui-egui/tests/c0_host_contract.rs` |

@@ -31,6 +31,25 @@ the reply is ready when the call returns.
 The facts this rests on are tested natively in `crates/ui-egui/tests/c0_control_passes.rs`. The browser
 half (`page_control/bridge.rs`) is compiled for the web build but no test runs it.
 
+## The generative requests: `c0.*`
+
+Five requests for an image-generation panel, answered like any other request (in the call's own pass).
+Code: `crates/ui-egui/src/c0_generative.rs`; tests: `crates/ui-egui/tests/c0_generative_bridge.rs`, and the
+shape the host reads in `c0_host_contract.rs` `h_generative_bridge_commands`. None writes to disk or takes a
+path. Images and files are base64 (standard alphabet, no `data:` prefix on output; one is accepted on input).
+Rectangles are in document pixels. Failures reply `{"ok": false, "error": "..."}`.
+
+| Request | Params | Result |
+|---|---|---|
+| `c0.capture` | `{scope: "document" \| "selection", maxSide?}` | `{png, rect: {x, y, width, height}, scale}`: the composite of the visible layers (transparent where nothing is drawn), the whole canvas or the selection's bounds; `maxSide` > 0 reduces the longer side to at most that, `scale` is output over original (1 when not reduced). Errors: `no document open`, `no selection` |
+| `c0.selectionMask` | `{rect}` | `{png}`: 8-bit grey PNG exactly `rect.width` x `rect.height`, 255 selected, 0 not, grey for partial; outside the canvas reads 0. Errors as above |
+| `c0.place` | `{png, name, rect?, clipToSelection?, asDocument?}` | `{layer}`, or `{document}` with `asDocument`. A new pixel layer named `name` above the active layer, the image scaled to exactly `rect` (no rect: as large as fits the canvas, centred, in the image's proportions); `clipToSelection` gives it a layer mask from the selection. One history step named `name`. `asDocument` opens a new document tab called `name` instead (no document needed) |
+| `c0.openFile` | `{name, bytes}` | `{document}`: opens the bytes as File > Open does after the browser's picker (every format the importer reads), in its own tab; never asks for a file dialog. A file that is not a document is an error and opens nothing |
+| `c0.cancelFileDialog` | `{}` | `{cancelled}`: dismisses an unanswered in-page file dialog (the one behind `a file dialog is already open`); `false` when none was open |
+
+`c0.capture` and `c0.selectionMask` only read, so they ask for no frame. A `c0.*` request may be up to 96 MiB
+(a file travels in it); every other request keeps 1 MiB (`page_control::request_limit`).
+
 ## The toolbar as a palette: `panels.toolbar_floating`
 
     {"method": "ui.set", "params": {"panels": {"toolbar_floating": true}}}
