@@ -47,8 +47,30 @@ Rectangles are in document pixels. Failures reply `{"ok": false, "error": "..."}
 | `c0.openFile` | `{name, bytes}` | `{document}`: opens the bytes as File > Open does after the browser's picker (every format the importer reads), in its own tab; never asks for a file dialog. A file that is not a document is an error and opens nothing |
 | `c0.cancelFileDialog` | `{}` | `{cancelled}`: dismisses an unanswered in-page file dialog (the one behind `a file dialog is already open`); `false` when none was open |
 
-`c0.capture` and `c0.selectionMask` only read, so they ask for no frame. A `c0.*` request may be up to 96 MiB
+`c0.capture`, `c0.selectionMask` and `c0.documentBytes` only read, so they ask for no frame. A `c0.*` request may be up to 96 MiB
 (a file travels in it); every other request keeps 1 MiB (`page_control::request_limit`).
+
+## Sessions: ids, tab filter, activate, close, bytes
+
+Named groups of documents shown as tabs are the host's; the app gives it what it needs. Code:
+`crates/ui-egui/src/c0_sessions.rs` and `crates/engine/src/c0_sessions.rs`; tests:
+`crates/ui-egui/tests/c0_sessions_bridge.rs`, and the shape the host reads in `c0_host_contract.rs`
+`i_sessions_bridge`. The host polls `ui.inspect`; there are no events.
+
+- **Id.** Every entry of `ui.inspect().session.documents[]` (and of `session.inspect`) has `id`, a number: the same
+  from the moment the document opens until it closes, whatever happens to tab order (`document.move`) or to other
+  documents, and never reused in a run (a closed document reopened from its bytes gets a new one). `index` still
+  shifts. `c0.openFile` and `c0.place {asDocument}` answer `{document, id}`. `c0.capture`, `c0.selectionMask` and
+  `c0.place` take an optional `id` to act on a document other than the active one (`c0.place` leaves the active tab
+  alone); an unknown id is `no document with id N`.
+- **`ui.inspect().session.visible`**: the tab filter, `null` when every tab shows.
+
+| Request | Params | Result |
+|---|---|---|
+| `c0.activate` | `{id}` | `{id, document}` (the tab index). A document the filter hides: `document N is hidden by the tab filter` |
+| `c0.close` | `{id, discard?}` | `{id, closed, prompt}`. Without `discard`, File › Close by the app's normal path: a document with unsaved changes stays open behind the app's prompt (`closed: false, prompt: true`). `discard: true` closes it without asking |
+| `c0.tabs` | `{visible: [id] \| null}` | `{visible, active}` (`active` an id or `null`). A list: the tab strip shows only those documents, Next/Previous Document (Ctrl+Tab) and Window › Arrange go through only those, and when the active document is not listed the first listed one becomes active. `null` shows all. A document opened or created while a list is set joins it; a closed one leaves it. Hidden documents stay open and untouched. Without `visible` the request only reports. The filter is not saved in workspaces. An unknown id: `no document with id N`, nothing changes |
+| `c0.documentBytes` | `{id?, format?: "pcraft"}` | `{name, format: "pcraft", bytes, revision}`: the document in the native layered format as File › Save writes it, base64, with no dialog and no path; read-only (the dirty flag, history and revision do not change). No `id`: the active document. At most 72 MiB of bytes (96 MiB as base64) |
 
 ## The toolbar as a palette: `panels.toolbar_floating`
 
