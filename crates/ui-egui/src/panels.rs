@@ -87,13 +87,11 @@ pub fn toolbar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     // Two columns when the header chevron asks for them; a column that doesn't fit scrolls.
     let double = app.ui.panels.toolbar_double;
     let w = if double { w1 + bx + 2.0 } else { w1 };
-    let panel = crate::direction::start_panel("toolbar")
+    let float = toolbar_float::host(app, ui.ctx(), (w, bx, m), crate::direction::start_panel("toolbar")
         .resizable(false)
         .exact_size(w)
-        .frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(m, 8)));
-    let float = toolbar_float::host(app, ui.ctx(), (w, bx, m), panel).show(
-        ui,
-        |ui| {
+        .frame(egui::Frame::NONE.fill(t.chrome).inner_margin(egui::Margin::symmetric(m, 8))))
+        .show(ui, |ui| {
             if t.pro {
                 // Photoshop's toolbar header chevrons switch between one and two columns.
                 let (cr, resp) = ui.allocate_exact_size(vec2(bx, 14.0), Sense::click());
@@ -369,8 +367,7 @@ pub fn toolbar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                     });
                 });
             }
-        },
-    );
+        });
     toolbar_float::settle(&mut app.ui.panels, float);
 }
 
