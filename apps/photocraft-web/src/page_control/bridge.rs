@@ -200,8 +200,10 @@ fn settle(ctx: &egui::Context, reply: &mut Value, palette: Palette) {
 
 fn submit(tx: &Sender<ControlRequest>, method: String, params: Value) -> Result<Receiver<Value>, String> {
     let (reply, rx) = channel();
-    // No deadline: `std::time::Instant` does not exist in the browser; the page enforces its own.
-    tx.send(ControlRequest { method, params, reply, deadline: None }).map_err(|_| "PhotoCraft has stopped".to_owned())?;
+    // No deadline: `std::time::Instant` does not exist in the browser; the page enforces its own. The
+    // dispatch flag is upstream's (a transport that gives up asks whether the command ran); this
+    // bridge never gives up on a reply, so a fresh flag nobody reads is right.
+    tx.send(ControlRequest { method, params, reply, deadline: None, dispatch: Default::default() }).map_err(|_| "PhotoCraft has stopped".to_owned())?;
     Ok(rx)
 }
 
