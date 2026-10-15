@@ -1,11 +1,9 @@
-<p align="center">
-  <a href="https://getartcraft.com/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="docs/brand/artcraft-logo-white.svg">
-      <img alt="ArtCraft" src="docs/brand/artcraft-logo.svg" width="200">
-    </picture>
-  </a>
-</p>
+> [!NOTE]
+> **This is C0photocraft, the C0VIBE fork of PhotoCraft.** PhotoCraft is made by the ArtCraft team and
+> community ([storytold/photocraft](https://github.com/storytold/photocraft)); this fork is not an ArtCraft
+> product and is not endorsed by them. Our changes live on the `c0/main` branch. As the ArtCraft brand
+> licence asks of modified versions, the ArtCraft logos are removed here; the README below is otherwise
+> upstream's, unchanged.
 
 <h1 align="center">PhotoCraft</h1>
 
@@ -426,7 +424,6 @@ Forks and modified versions must remove them.
 <sub>Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. PhotoCraft is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
 
 <p align="center">
-  <a href="https://getartcraft.com/"><img alt="ArtCraft" src="docs/brand/artcraft-mark.svg" width="28"></a><br>
   <sub>Made by the <a href="https://getartcraft.com/">ArtCraft</a> team and community.</sub>
 </p>
 
