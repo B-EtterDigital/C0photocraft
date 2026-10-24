@@ -16,6 +16,13 @@ use photocraft_raster::{Cancelled, Interrupt};
 /// Energy added per unit of protection: far above any gradient magnitude.
 const PROTECT_ENERGY: f32 = 1.0e4;
 
+/// Keep full horizontal detail while reducing the height used to find vertical seams. At a
+/// 24 MP working size this cuts the dynamic-programming work by about four times without
+/// quantising the output pixels or changing the requested output dimensions.
+const SEAM_SEARCH_MAX_HEIGHT: usize = 512;
+const PROXY_SHRINK_MIN_HEIGHT: usize = 2_048;
+const PROXY_SHRINK_MIN_SEAMS: usize = 64;
+
 /// Gradient-magnitude energy (the paper's e1, `|∂x| + |∂y|` summed over channels). Forward and
 /// backward differences are both counted so one-pixel lines (whose central difference is zero)
 /// carry energy too.
@@ -248,6 +255,9 @@ pub fn carve_width_with(w: usize, h: usize, ch: usize, img: &[f32], protect: Opt
     }
     let seams = new_w.abs_diff(w).max(1) as f32;
     if new_w < w {
+        if h >= PROXY_SHRINK_MIN_HEIGHT && w - new_w >= PROXY_SHRINK_MIN_SEAMS {
+            return carve_width_proxy_height(w, h, ch, img, protect, new_w, ctl);
+        }
         let mut carver = Carver::new(w, h, ch, img.to_vec(), protect.map(<[f32]>::to_vec), false);
         while carver.cw > new_w {
             ctl.check()?;
@@ -308,6 +318,114 @@ pub fn carve_width_with(w: usize, h: usize, ch: usize, img: &[f32], protect: Opt
         cw = nw;
     }
     Ok(cur)
+}
+
+/// Find large-image seams on vertically averaged rows, then apply those paths to the original
+/// pixels. The proxy has the same width, so each seam still removes exactly one source pixel per
+/// row. Keeping output pixels at full resolution avoids the quality loss of resizing the result;
+/// only the seam decisions use the coarser vertical signal. Small operations retain the exact
+/// full-resolution algorithm above.
+fn carve_width_proxy_height(w: usize, h: usize, ch: usize, img: &[f32], protect: Option<&[f32]>, new_w: usize, ctl: &Interrupt) -> Result<Vec<f32>, Cancelled> {
+    let step = h.div_ceil(SEAM_SEARCH_MAX_HEIGHT);
+    let proxy_h = h.div_ceil(step);
+    let row_len = w * ch;
+    let proxy_row_len = proxy_h * row_len;
+    let mut proxy = vec![0.0; proxy_row_len];
+    for (py, out_row) in proxy.chunks_exact_mut(row_len).enumerate() {
+        let y0 = py * step;
+        let y1 = (y0 + step).min(h);
+        let divisor = (y1 - y0) as f32;
+        for y in y0..y1 {
+            let in_row = &img[y * row_len..(y + 1) * row_len];
+            for (out, &sample) in out_row.iter_mut().zip(in_row) {
+                *out += sample / divisor;
+            }
+        }
+    }
+    let proxy_protect = protect.map(|mask| {
+        let mut reduced = vec![0.0; proxy_h * w];
+        for (py, out_row) in reduced.chunks_exact_mut(w).enumerate() {
+            let y0 = py * step;
+            let y1 = (y0 + step).min(h);
+            let divisor = (y1 - y0) as f32;
+            for y in y0..y1 {
+                let in_row = &mask[y * w..(y + 1) * w];
+                for (out, &sample) in out_row.iter_mut().zip(in_row) {
+                    *out += sample / divisor;
+                }
+            }
+        }
+        reduced
+    });
+
+    let seam_count = w - new_w;
+    // Removing a seam shifts the panel left, so a panel column is not an original one. Tracking
+    // the original column per pixel costs a third buffer that every seam has to shift (24 MB a
+    // seam at 24 MP); counting the columns already taken from that row is exact and costs a
+    // binary search per removed column.
+    let mut carver = Carver::new(w, proxy_h, ch, proxy, proxy_protect, false);
+    let mut removed_by_row: Vec<Vec<usize>> = vec![Vec::new(); proxy_h];
+    let mut taken = 0usize;
+    while carver.cw > new_w {
+        ctl.check()?;
+        record_removed(&mut removed_by_row, &carver.remove_seam());
+        taken += 1;
+        ctl.progress(taken as f32 / seam_count as f32);
+    }
+    let mut out = Vec::with_capacity(new_w * h * ch);
+    let mut columns = vec![0; seam_count];
+    for y in 0..h {
+        ctl.check()?;
+        let proxy_y = (y / step).min(proxy_h - 1);
+        let next_proxy_y = (proxy_y + 1).min(proxy_h - 1);
+        let blend = (y % step) as f32 / step as f32;
+        let lower = &removed_by_row[proxy_y];
+        let upper = &removed_by_row[next_proxy_y];
+        let mut min_x = 0;
+        for (i, x) in columns.iter_mut().enumerate() {
+            let interpolated = lower[i] as f32 + (upper[i] as f32 - lower[i] as f32) * blend;
+            let max_x = w - (seam_count - i);
+            *x = (interpolated.round() as usize).clamp(min_x, max_x);
+            min_x = x.saturating_add(1);
+        }
+        let mut next = 0;
+        let row = &img[y * row_len..(y + 1) * row_len];
+        for (x, pixel) in row.chunks_exact(ch).enumerate() {
+            if columns.get(next) == Some(&x) {
+                next += 1;
+            } else {
+                out.extend_from_slice(pixel);
+            }
+        }
+    }
+    ctl.progress(1.0);
+    Ok(out)
+}
+
+/// Add one seam, given in panel columns, to each row's sorted list of removed original columns.
+/// For the `i`-th column already taken from a row, `o - i` is the panel column it occupied, and
+/// that never decreases along the list, so the taken columns at or left of panel column `x` are a
+/// prefix found by binary search. `x` plus that prefix's length is the original column, and every
+/// removal the search passed is left of it, so it inserts where the search stopped. The rows are
+/// independent, so they update in parallel like the pixel shift.
+fn record_removed(removed_by_row: &mut [Vec<usize>], seam: &[usize]) {
+    // The entries are the original columns still taken from one row, sorted, so entry `i` is at
+    // least `i` and `o - i` cannot underflow.
+    let add = |(row, &x): (&mut Vec<usize>, &usize)| {
+        let (mut lo, mut hi) = (0, row.len());
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            if row[mid] - mid <= x { lo = mid + 1 } else { hi = mid }
+        }
+        row.insert(lo, x + lo);
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use rayon::prelude::*;
+        removed_by_row.par_iter_mut().zip(seam.par_iter()).for_each(add);
+    }
+    #[cfg(target_arch = "wasm32")]
+    removed_by_row.iter_mut().zip(seam.iter()).for_each(add);
 }
 
 /// Content-aware resize of `img` to `new_w × new_h` (width first, then height by transposing).
@@ -637,6 +755,62 @@ mod tests {
         // Plain resampling squashes it instead.
         let plain = resize_bilinear(w, h, 3, &img, 24, h);
         assert!(red_columns(24, h, &plain) < 4);
+    }
+
+    #[test]
+    fn tall_proxy_shrink_preserves_full_resolution_salient_and_protected_pixels() {
+        let (w, h, ch, new_w) = (512, PROXY_SHRINK_MIN_HEIGHT, 3, 384);
+        let mut img = bar(w, h);
+        let mut protect = vec![0.0; w * h];
+        for y in 0..h {
+            let i = (y * w + 256) * ch;
+            img[i..i + ch].copy_from_slice(&[0.03, 0.87, 0.42]);
+            protect[y * w + 256] = 1.0;
+        }
+
+        let out = carve_width_with(w, h, ch, &img, Some(&protect), new_w, &Interrupt::NONE).unwrap();
+
+        assert_eq!(out.len(), new_w * h * ch);
+        assert_eq!(red_columns(new_w, h, &out), 4, "the full-resolution bar survives");
+        for y in 0..h {
+            let row = &out[y * new_w * ch..(y + 1) * new_w * ch];
+            assert!(row.chunks_exact(ch).any(|px| px == [0.03, 0.87, 0.42]), "protected mark survives row {y}");
+        }
+    }
+
+    #[test]
+    fn tall_proxy_shrink_observes_cancellation_before_modifying_source() {
+        let (w, h, ch) = (128, PROXY_SHRINK_MIN_HEIGHT, 3);
+        let img = vec![0.5; w * h * ch];
+        let cancelled = || true;
+        assert_eq!(carve_width_with(w, h, ch, &img, None, 64, &Interrupt::cancel_only(&cancelled)), Err(Cancelled));
+    }
+
+    /// The proxy path counts each removed original column instead of shifting an index map, so a
+    /// tracking and a counting carver must agree: run both side by side down to one column and
+    /// check every row's list after every seam (tie-heavy noise gives rows different histories;
+    /// 1-4 channels, with and without protection).
+    #[test]
+    fn counted_removed_columns_match_the_tracked_map() {
+        let cases: [(usize, usize, usize, u32, bool); 5] =
+            [(37, 9, 1, 2, false), (40, 12, 2, 3, true), (53, 7, 3, 255, false), (29, 16, 4, 1000, true), (64, 5, 3, 2, true)];
+        for (i, &(w, h, ch, levels, prot)) in cases.iter().enumerate() {
+            let img = noise(w * h * ch, levels, 31 + i as u32);
+            let protect = prot.then(|| noise(w * h, 3, 77 + i as u32));
+            let mut tracked = Carver::new(w, h, ch, img.clone(), protect.clone(), true);
+            let mut counted = Carver::new(w, h, ch, img, protect, false);
+            let mut expected: Vec<Vec<usize>> = vec![Vec::new(); h];
+            let mut got: Vec<Vec<usize>> = vec![Vec::new(); h];
+            while tracked.cw > 1 {
+                let seam = tracked.remove_seam();
+                for (row, &x) in expected.iter_mut().zip(seam.iter()) {
+                    let at = row.partition_point(|&o| o < x);
+                    row.insert(at, x);
+                }
+                record_removed(&mut got, &counted.remove_seam());
+                assert_eq!(got, expected, "case {i} after {} seams", w - tracked.cw);
+            }
+        }
     }
 
     #[test]

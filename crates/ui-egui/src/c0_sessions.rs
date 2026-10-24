@@ -60,6 +60,30 @@ pub fn fit(app: &PhotocraftApp, natural: &[f32], selected: usize, avail: f32, mi
     f
 }
 
+/// Upstream's document tab fit (`fit_doc_tabs`: no tab narrower than the widest) over the tabs this host shows.
+pub fn fit_widest(app: &PhotocraftApp, natural: &[f32], selected: usize, avail: f32) -> TabFit {
+    let documents = app.session.documents().len();
+    let widest = (0..natural.len())
+        .filter(|&i| app.session.visible().is_none() || i >= documents || app.session.tab_visible(i))
+        .map(|i| natural[i])
+        .filter(|w| w.is_finite())
+        .fold(0.0, f32::max);
+    fit(app, natural, selected, avail, widest, tab_strip::CHEVRON_W)
+}
+
+/// Window › Arrange tiles over the documents this host shows: upstream's `arranged_cells` (each document keeps
+/// its tile; with more documents than tiles the shown run slides only as far as it must) on the visible documents.
+/// With no tab filter it is upstream's exactly.
+pub fn arranged_cells(app: &PhotocraftApp, rect: egui::Rect, idx: usize) -> Option<Vec<(usize, egui::Rect)>> {
+    let docs: Vec<usize> = (0..app.session.documents().len()).filter(|&i| app.session.tab_visible(i)).collect();
+    let n = docs.len();
+    let cells = crate::view_cmds::cells(&app.ui.view.arrange, rect, n)?;
+    let k = docs.iter().position(|&d| d == idx).unwrap_or(0);
+    let start = docs.iter().position(|&d| d >= app.arrange_start).unwrap_or(n).min(n.saturating_sub(cells.len()));
+    let start = if k < start { k } else { start.max((k + 1).saturating_sub(cells.len())) };
+    Some(docs[start..].iter().copied().zip(cells).collect())
+}
+
 /// The id of the document at `index`.
 pub fn id_of(app: &PhotocraftApp, index: usize) -> Option<u64> {
     app.session.documents().get(index).map(|d| d.uid)
