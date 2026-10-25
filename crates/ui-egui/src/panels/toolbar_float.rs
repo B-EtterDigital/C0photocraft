@@ -153,7 +153,7 @@ pub fn clamp_offset(canvas: Rect, size: Vec2, offset: Vec2) -> Vec2 {
 impl Float {
     fn show(self, ctx: &egui::Context, add_contents: impl FnOnce(&mut egui::Ui)) -> Change {
         let t = Tokens::get(ctx);
-        let id = egui::Id::new("toolbar-float");
+        let id = egui::Id::unique("toolbar-float");
         // The canvas area is the last frame's (the toolbar is drawn before the canvas): when it
         // changed, as it does on the frame the toolbar leaves the frame, draw once more.
         if ctx.data(|d| d.get_temp::<Rect>(id.with("canvas"))) != Some(self.canvas) {
@@ -180,7 +180,7 @@ impl Float {
                 ui.set_width(inner);
                 ui.spacing_mut().item_spacing = vec2(0.0, 3.0);
                 let (strip, grip) = ui.allocate_exact_size(vec2(inner, GRIP), Sense::click_and_drag());
-                grip.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, crate::i18n::t(GRIP_LABEL)));
+                grip.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Unknown, true, crate::i18n::t(GRIP_LABEL)));
                 let tint = if grip.hovered() || grip.dragged() { t.text } else { t.text_faint };
                 for column in -1..=1 {
                     for row in [-2.0, 2.0] {
