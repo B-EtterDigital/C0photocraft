@@ -22,8 +22,8 @@ use serde_json::{Value, json};
 
 fn services() -> Services {
     Services {
-        import: Some(Box::new(|name: &str, bytes: &[u8], depth: usize| {
-            photocraft_io::import_with_svg_group_depth(name, bytes, depth).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
+        import: Some(Box::new(|name: &str, bytes: &[u8], opts: &photocraft_io::ImportOptions| {
+            photocraft_io::import_with_options(name, bytes, opts).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
         })),
         ..Default::default()
     }
@@ -212,7 +212,7 @@ fn activate_and_close_by_id_with_the_unsaved_changes_prompt() {
 
 fn harness(theme: ThemeKind, names: &[&'static str]) -> Harness<'static, PhotocraftApp> {
     let names = names.to_vec();
-    let mut h = Harness::builder().with_size(vec2(1100.0, 700.0)).with_max_steps(64).build_eframe(move |cc| {
+    let mut h = Harness::builder().with_size(vec2(1600.0, 700.0)).with_max_steps(64).build_eframe(move |cc| {
         PhotocraftApp::setup_context(&cc.egui_ctx, theme);
         let mut app = new_app();
         app.run("prefs.set", json!({"values": {"interface.theme": theme.id()}})).unwrap();
