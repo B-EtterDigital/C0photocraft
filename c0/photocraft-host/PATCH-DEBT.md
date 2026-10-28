@@ -44,10 +44,18 @@ The following conflicted paths have **zero remaining edited lines**: `crates/ui-
 `crates/ui-egui/src/retouch_ui.rs`; it stays deleted and the two source-coordinate replacements
 live in `tools/retouch_ui.rs`.
 
-The seven workflow conflicts (`ci.yml`, `docs.yml`, `freebsd.yml`, `packaging-lint.yml`,
-`perf-nightly.yml`, `release.yml`, `windows-arm64.yml`, all under `.github/workflows/`) are
-fork policy removals, not source hooks. Upstream versions are accepted in the merge and removed
-in the mandatory separate trademark/CI commit. No CI hook is resurrected or ported.
+The seven workflow conflicts are fork policy removals, with zero source-hook debt:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/docs.yml`
+- `.github/workflows/freebsd.yml`
+- `.github/workflows/packaging-lint.yml`
+- `.github/workflows/perf-nightly.yml`
+- `.github/workflows/release.yml`
+- `.github/workflows/windows-arm64.yml`
+
+Upstream versions are accepted in the merge and removed in the mandatory separate trademark/CI
+commit. No CI hook is resurrected or ported.
 
 ## Couplings without an edited line (re-check on every pull)
 
