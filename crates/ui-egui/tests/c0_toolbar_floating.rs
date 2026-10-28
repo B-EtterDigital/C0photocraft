@@ -64,7 +64,13 @@ fn left(h: &Harness) -> f32 {
 /// The tool buttons the last pass drew, in slot order: tool-sized and clickable.
 fn tool_buttons(h: &Harness, side: f32) -> Vec<Rect> {
     h.ctx.viewport(|v| {
-        v.prev_pass.widgets.layers().flat_map(|(_, w)| w.iter()).filter(|w| w.rect.size() == egui::Vec2::splat(side) && w.sense.senses_click()).map(|w| w.rect).collect()
+        v.prev_pass
+            .widgets
+            .layers()
+            .flat_map(|(_, w)| w.iter())
+            .filter(|w| w.rect.size() == egui::Vec2::splat(side) && w.sense.senses_click())
+            .map(|w| w.rect)
+            .collect()
     })
 }
 
