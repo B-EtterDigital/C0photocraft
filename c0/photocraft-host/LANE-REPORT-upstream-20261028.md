@@ -45,22 +45,75 @@ moved files and CI policy removals, are now accounted for in that ledger.
 
 ## Verification
 
-Verification in progress. `cargo test -p photocraft-web` **passed: 20 tests, 0 failed, 0 ignored**.
-It waited 2897 seconds for host admission (landing mode was renewed twice, then a drain load guard).
-Queue-entry load: 5.26 / 9.62 / 14.48. Last pre-admission sample: 10.48 / 13.59 / 14.35.
-After the command: 10.01 / 13.39 / 14.18. Disk before admission and after: 83%.
-UI/engine suites, wasm checks, clippy and layer check remain pending.
+All Cargo commands run under `smoac-slot run gate 3 3600 --` with `CARGO_BUILD_JOBS=4` and
+`CARGO_TARGET_DIR=/srv/smoac/build/sow-fix-photocraft-target`. UI/engine tests use `RUST_TEST_THREADS=4`.
+Disk is checked before every build; the wrapper stops above 88%. Admission waits so far: 2897 s,
+819 s, 1199 s, 225 s. Host-managed gate caps changed during the lane; this lane never adjusted them.
 
-The first UI test build exited 101 before running tests: E0631 in the C0 test importer callback.
-Upstream changed its third argument from an SVG-depth integer to `&ImportOptions`. All three C0
-import fixtures now forward `import_with_options`; assertions are unchanged. Attempt load before:
-8.48 / 11.20 / 12.90; after: 26.96 / 18.36 / 15.34. Disk: 83% -> 84%.
-This is a repaired fork fixture incompatibility, not an upstream-red test. The full retry is queued.
-All Cargo commands use `CARGO_BUILD_JOBS=4` and the requested shared target directory.
-Initial pre-build disk: 81%; load averages 5.26 / 9.62 / 14.48.
-No Rust crate or Cargo manifest exists under c0/; host tests live in ui-egui and photocraft-web.
-Remaining pass counts, per-command load pairs and upstream-red attribution will be recorded here. The six edited host modules/harness files pass rustfmt --check; git diff --check is clean.
-No release web page build requested or performed; release wasm size unmeasured, cap unchanged at 25165824 bytes.
+| Command / context | Result | Load before (1/5/15 min) | Load after | Disk before -> after |
+|---|---|---|---|---|
+| `cargo test -p photocraft-web` | **20 passed, 0 failed, 0 ignored** | 5.26 / 9.62 / 14.48 at queue entry; 10.48 / 13.59 / 14.35 last pre-admission sample | 10.01 / 13.39 / 14.18 | 81% at queue entry; 83% at admission -> 83% |
+| UI first build (old importer fixtures) | compile error E0631; repaired | 8.48 / 11.20 / 12.90 | 26.96 / 18.36 / 15.34 | 83% -> 84% |
+| UI first complete run (narrow Pro fixture) | 4353 passed, 29 failed, 19 ignored; Pro fixture repaired | 13.09 / 14.13 / 14.81 | 18.51 / 21.35 / 18.47 | 83% -> 84% |
+| Pure upstream UI, same full command | 4278 passed, 28 failed, 19 ignored | 18.63 / 20.25 / 19.03 | 19.44 / 21.86 / 20.42 | 85% -> 86% |
+| Final fork UI, same full command | 4354 passed, 28 upstream-red, 19 ignored; zero fork-only failures | 19.44 / 21.86 / 20.42 | 16.82 / 16.92 / 18.44 | 86% -> 86% |
+
+The complete UI command on both trees is `cargo test -p photocraft-ui-egui --no-fail-fast`.
+The comparison keys failures by test binary and full test name; every final fork failure also
+fails on the untouched upstream worktree at `52f338e2`. That worktree remains clean.
+
+Fork fixture repairs: the three import callbacks now forward `&ImportOptions` through
+`import_with_options`; upstream replaced their old scalar SVG-depth argument. The Pro tab-filter
+fixture now has an 1800 px viewport instead of 1100 px, leaving room for upstream's full-title tabs.
+Every assertion remains; overflow is separately tested by upstream's tab tests.
+
+Host-specific UI proof: all **66 integration tests** pass (clone offset 4, control passes 5,
+generative bridge 21, host contract 10, sessions 7, synthetic input 5, floating toolbar 14), plus
+**10 unit tests** (ants clock 6, host palette 3, stable filtered tiling 1). The upstream ants tests
+also pass, including whole device-pixel thickness, equal rectangle edges at fractional scale and
+antialiased slanted lines: this proves the old point-snap wrapper is unnecessary in the new renderer.
+The fixed-tick phase and repaint scheduling remain in force. No crate/manifest exists under c0/;
+its Rust host tests live in photocraft-ui-egui and photocraft-web.
+
+Engine tests, default and host-feature wasm checks, native/wasm clippy, layer check and offscreen
+palette captures are still running/pending. The edited host modules/harness pass rustfmt --check;
+git diff --check is clean. No release web page was built: release wasm size unmeasured, cap
+unchanged at **25165824 bytes**.
+
+### Confirmed upstream-red UI tests
+
+All 28 below panic in epaint's fonts.rs with `No glyph for …` on this host. The same full command,
+thread limit and optional-font environment reproduce them on pure upstream; no fallback policy or
+upstream font code was changed. Counts above retain Cargo's nonzero UI exit status (101).
+
+- `src/lib.rs::i18n::live_tests::a_control_request_changes_the_drawing_language_in_the_same_frame`
+- `src/lib.rs::i18n::live_tests::an_explicit_language_survives_restart_on_a_different_system_language`
+- `src/lib.rs::i18n::live_tests::dynamic_brush_sections_draw_in_the_selected_language`
+- `src/lib.rs::i18n::live_tests::first_launch_renders_the_system_language_without_overwriting_auto`
+- `src/lib.rs::i18n::live_tests::korean_glyphs_remain_available_after_repeated_language_switches`
+- `src/lib.rs::i18n::live_tests::preferences_preview_does_not_commit_until_applied_and_survives_reload`
+- `src/lib.rs::input::hold_keys::tests::space_while_editing_type_is_not_the_hand_tool`
+- `src/lib.rs::panels::brush_panel::tests::brush_sections_paint_simplified_chinese_labels`
+- `src/lib.rs::panels::layer_row_ui::edit_tests::text_thumbnail_opens_inline_editing_and_typing_is_one_undo_step`
+- `src/lib.rs::panels::layer_row_ui::tests::collapse_all_groups_from_the_panel_menu_and_it_is_saved`
+- `src/lib.rs::panels::layer_row_ui::tests::long_names_never_run_under_the_indicators`
+- `src/lib.rs::panels::layer_row_ui::tests::new_group_items_in_the_panel_menu_open_the_dialog`
+- `src/lib.rs::panels::layer_row_ui::tests::the_fx_triangle_hides_and_shows_the_effects_rows`
+- `src/lib.rs::tools::type_tool::canvas_tests::a_drag_just_outside_the_typed_text_moves_it`
+- `src/lib.rs::tools::type_tool::canvas_tests::empty_ime_events_never_delete_the_selection`
+- `src/lib.rs::tools::type_tool::canvas_tests::temporary_type_transform_captures_press_and_rejects_collapsed_geometry`
+- `src/lib.rs::tools::type_tool::canvas_tests::temporary_type_transform_free_scale_center_scale_move_skew_and_rotation`
+- `src/lib.rs::tools::type_tool::canvas_tests::temporary_type_transform_noop_cancel_and_stale_capture`
+- `src/lib.rs::tools::type_tool::canvas_tests::temporary_type_transform_preserves_paragraph_resize_pivot_ime_and_shortcuts`
+- `src/lib.rs::tools::type_tool::canvas_tests::temporary_type_transform_scales_without_reflow_or_leaving_type`
+- `src/lib.rs::tools::type_tool::canvas_tests::temporary_type_transform_visibility_and_cursors`
+- `src/lib.rs::tools::type_tool::canvas_tests::the_move_reach_is_on_screen_and_leaves_other_type_alone`
+- `src/lib.rs::tools::type_tool::canvas_tests::type_selection_highlight_visible_with_command_held`
+- `src/lib.rs::tools::type_tool::font_picker_tests::localized_font_names_label_the_menu_but_pick_the_family`
+- `src/lib.rs::tools::type_tool::ime_tests::actual_font_search_owns_stock_input_without_a_speculative_custom_request`
+- `src/lib.rs::tools::type_tool::ime_tests::actual_screen_picker_modal_retires_the_type_fence_and_return_rearms_it`
+- `src/lib.rs::tools::vector_ui::paint_tests::shape_paint_hex_input_keeps_partial_text_and_preserves_alpha`
+- `tests/it/main.rs::camera_raw_localization::all_registered_languages_render_camera_raw_and_switch_without_resetting_view_or_filter`
 
 ## What upstream adds
 
