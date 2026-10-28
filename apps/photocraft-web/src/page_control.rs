@@ -150,7 +150,7 @@ mod tests {
         for method in ["ui.set", "engine.execute", "c0", "xc0.place", ""] {
             assert_eq!(request_limit(method), MAX_REQUEST_BYTES, "{method}");
         }
-        assert!(C0_MAX_REQUEST_BYTES > 64 * 1024 * 1024, "room for a 48 MiB file as base64");
+        const { assert!(C0_MAX_REQUEST_BYTES > 64 * 1024 * 1024, "room for a 48 MiB file as base64") };
     }
 
     /// What changes the document or the dialog state asks for a frame.
