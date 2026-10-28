@@ -4,11 +4,11 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
+use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
+use photocraft_ui_egui::PhotocraftApp;
 use photocraft_ui_egui::control::ControlRequest;
 use photocraft_ui_egui::theme::host;
-use photocraft_ui_egui::PhotocraftApp;
 use serde_json::{Value, json};
 use wasm_bindgen::JsCast as _;
 use wasm_bindgen::prelude::*;
@@ -199,9 +199,10 @@ fn settle(ctx: &egui::Context, reply: &mut Value, palette: Palette) {
 }
 
 fn submit(tx: &Sender<ControlRequest>, method: String, params: Value) -> Result<Receiver<Value>, String> {
-    let (reply, rx) = channel();
-    // No deadline: `std::time::Instant` does not exist in the browser; the page enforces its own.
-    tx.send(ControlRequest { method, params, reply, deadline: None }).map_err(|_| "PhotoCraft has stopped".to_owned())?;
+    // The constructor initializes upstream's dispatch state without a native-clock deadline.
+    // The page enforces its own reply deadline.
+    let (request, rx) = ControlRequest::new(method, params);
+    tx.send(request).map_err(|_| "PhotoCraft has stopped".to_owned())?;
     Ok(rx)
 }
 

@@ -315,3 +315,16 @@ fn open_file(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
     let index = open_bytes(app, &name, &bytes)?;
     Ok(json!({"document": index, "id": crate::c0_sessions::id_of(app, index)}))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn minimum_rectangle_coordinates_are_rejected_without_panicking() {
+        for (x, y) in [(i64::MIN, 0), (0, i64::MIN)] {
+            let value = json!({"x": x, "y": y, "width": 1, "height": 1});
+            assert!(rect_param(&value, "rect").is_err());
+        }
+    }
+}
