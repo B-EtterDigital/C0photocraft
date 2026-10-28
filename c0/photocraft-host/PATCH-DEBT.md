@@ -26,6 +26,8 @@ Only allowed to go down. Counts below compare against upstream `52f338e2df44ac73
 | `crates/engine/src/session/documents.rs` | 2 | `join_visible` after add, `settle_visible` after close and before upstream active-change notification | Maintains the filter and upstream cache notifications; moved with the document lifecycle code | Not yet |
 | `crates/engine/src/inspect.rs` | 2 | `"id": d.uid,` in `session.documents[]` and `"visible": s.visible(),` in `session` | The id and the filter are read by the host from `ui.inspect()` and `session.inspect` | Not yet |
 
+Ratchet: 85 (the daily job counts every added line in upstream files with `git diff --numstat --diff-filter=M <upstream> <candidate> -- . ":!c0"`, so re-indented, blank and replacing lines count too; by that count c0/main stood at 86 before this pull and this merge is 85. The nonblank, indentation-normalised count below is 54.)
+
 Source-hook subtotal: **54 nonblank added lines in 20 source files, 14 replaced, 2 removed,
 2 additional blank lines**. The inherited README branding policy adds zero lines, replaces six
 and removes three. Total debt in retained upstream files: **54 added lines in 21 files,
