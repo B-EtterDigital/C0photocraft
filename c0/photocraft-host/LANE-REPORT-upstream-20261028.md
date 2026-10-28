@@ -50,6 +50,12 @@ It waited 2897 seconds for host admission (landing mode was renewed twice, then 
 Queue-entry load: 5.26 / 9.62 / 14.48. Last pre-admission sample: 10.48 / 13.59 / 14.35.
 After the command: 10.01 / 13.39 / 14.18. Disk before admission and after: 83%.
 UI/engine suites, wasm checks, clippy and layer check remain pending.
+
+The first UI test build exited 101 before running tests: E0631 in the C0 test importer callback.
+Upstream changed its third argument from an SVG-depth integer to `&ImportOptions`. All three C0
+import fixtures now forward `import_with_options`; assertions are unchanged. Attempt load before:
+8.48 / 11.20 / 12.90; after: 26.96 / 18.36 / 15.34. Disk: 83% -> 84%.
+This is a repaired fork fixture incompatibility, not an upstream-red test. The full retry is queued.
 All Cargo commands use `CARGO_BUILD_JOBS=4` and the requested shared target directory.
 Initial pre-build disk: 81%; load averages 5.26 / 9.62 / 14.48.
 No Rust crate or Cargo manifest exists under c0/; host tests live in ui-egui and photocraft-web.
