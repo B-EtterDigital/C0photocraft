@@ -176,7 +176,7 @@ impl Float {
                 ui.set_width(inner);
                 ui.spacing_mut().item_spacing = vec2(0.0, 3.0);
                 let (strip, grip) = ui.allocate_exact_size(vec2(inner, GRIP), Sense::click_and_drag());
-                grip.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Other, true, crate::i18n::t(GRIP_LABEL)));
+                grip.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Unknown, true, crate::i18n::t(GRIP_LABEL)));
                 let tint = if grip.hovered() || grip.dragged() { t.text } else { t.text_faint };
                 for column in -1..=1 {
                     for row in [-2.0, 2.0] {
