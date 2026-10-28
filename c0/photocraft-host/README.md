@@ -81,9 +81,9 @@ the canvas, which then takes the full width. The palette has a grip to drag it b
 it; it stays inside the canvas area. `ui.inspect().panels` reports `toolbar_floating` and
 `toolbar_float: {"pos": [x, y] | null, "pinned": bool}`; `pos` is the palette's corner in points from
 the canvas area's corner (`null`: the default corner). `ui.set {panels: {toolbar_float: {...}}}` replaces
-the place as a whole. In the palette, the grip's context menu pins and docks; in the Pro themes the
-header chevron's context menu lists the three modes (its click still switches the columns). The Studio
-themes draw no chevron, so there the host owns the switch. Code: `crates/ui-egui/src/panels/toolbar_float.rs`;
+the place as a whole. In the palette, the grip's context menu pins and docks; the
+header chevron's context menu lists all four docked/floating and one/two-column states (its click
+still switches the columns). Upstream now draws this chevron in every theme, including RTL layouts. Code: `crates/ui-egui/src/panels/toolbar_float.rs`;
 tests: `crates/ui-egui/tests/c0_toolbar_floating.rs`.
 
 ## What the host relies on

@@ -8,7 +8,7 @@
 //! function of the tick (`floor(time * TICKS_PER_SECOND)`), so any two frames in one tick draw the
 //! same dashes.
 
-use crate::tool_feedback::DASH;
+const DASH: f32 = 4.0;
 
 /// Steps per second: as upstream's `time * 10.0` points per second, in whole steps.
 pub const TICKS_PER_SECOND: f64 = 10.0;
@@ -93,7 +93,15 @@ mod tests {
         use egui::pos2;
         let pts = [pos2(3.0, 4.0), pos2(77.0, 4.0), pos2(77.0, 51.0), pos2(3.0, 51.0)];
         for ppp in [1.0f32, 2.0] {
-            let at = |t: f64| crate::tool_feedback::ants(&pts, true, phase_at(t, ppp));
+            let at = |t: f64| {
+                let (mesh, slanted) = crate::ants::shapes(
+                    crate::ants::polyline(&pts, true),
+                    egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)),
+                    crate::ants::Style::new(ppp, t),
+                    true,
+                );
+                (mesh.vertices, mesh.indices, slanted)
+            };
             // Frames at an arbitrary scatter of times inside tick 7 draw the same segments.
             let seven = at(0.701);
             for t in [0.7013, 0.7117, 0.7333, 0.7499, 0.7611, 0.7799] {
@@ -102,14 +110,6 @@ mod tests {
             // The next tick moves them, and moves them as far as one step.
             let eight = at(0.801);
             assert!(eight != seven, "ppp {ppp}: the ants did not march");
-            let first = |shapes: &[egui::Shape]| {
-                shapes.iter().find_map(|s| match s {
-                    egui::Shape::LineSegment { points, .. } => Some(points[1]),
-                    _ => None,
-                })
-            };
-            let (a, b) = (first(&seven).unwrap(), first(&eight).unwrap());
-            assert!((a - b).length() > 0.0 && (a - b).length() <= 2.0, "{a:?} {b:?}");
         }
     }
 

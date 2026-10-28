@@ -155,3 +155,41 @@ fn document_bytes(app: &PhotocraftApp, p: &Value) -> Result<Value, String> {
         "revision": st.revision,
     }))
 }
+
+/// Stable upstream tiling restricted to the host's visible documents.
+pub(crate) fn arranged_cells(app: &PhotocraftApp, rect: egui::Rect) -> Option<Vec<(usize, egui::Rect)>> {
+    let visible = app.session.visible_indices();
+    let active = app.session.active_index()?;
+    let idx = visible.iter().position(|&i| i == active)?;
+    let cells = crate::view_cmds::cells(&app.ui.view.arrange, rect, visible.len())?;
+    let start = app.arrange_start.min(visible.len().saturating_sub(cells.len()));
+    let start = if idx < start { idx } else { start.max((idx + 1).saturating_sub(cells.len())) };
+    Some(visible.into_iter().skip(start).zip(cells).collect())
+}
+
+#[cfg(test)]
+mod sync_tests {
+    use super::*;
+    use photocraft_color::{ColorMode, SampleType};
+    use photocraft_doc::Document;
+    use photocraft_geom::Size;
+
+    #[test]
+    fn filtered_tiles_keep_their_positions_when_another_visible_document_activates() -> Result<(), String> {
+        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        for name in ["first", "hidden", "last"] {
+            app.session.add_document(Document::new(name, Size::new(8, 8), ColorMode::Rgb, SampleType::U8), None);
+        }
+        let ids: Vec<u64> = app.session.documents().iter().map(|d| d.uid).collect();
+        app.session.set_visible(Some(vec![ids[0], ids[2]]))?;
+        app.ui.view.arrange = "twoUpVertical".into();
+        let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
+        app.session.set_active(0);
+        let first = arranged_cells(&app, rect).ok_or("no tiles")?;
+        assert_eq!(first.iter().map(|(i, _)| *i).collect::<Vec<_>>(), [0, 2]);
+        assert!(first[0].1.right() <= first[1].1.left());
+        app.session.set_active(2);
+        assert_eq!(arranged_cells(&app, rect), Some(first));
+        Ok(())
+    }
+}

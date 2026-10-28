@@ -44,7 +44,7 @@ fn columns_harness(kind: ThemeKind, floating: bool, double: bool) -> Harness {
             if ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                 photocraft_ui_egui::panels::toolbar(app, ui);
                 let left = ui.available_rect_before_wrap().left();
-                ui.data_mut(|d| d.insert_temp(egui::Id::new("left"), left));
+                ui.data_mut(|d| d.insert_temp(egui::Id::unique("left"), left));
             }
         },
         app,
@@ -58,7 +58,7 @@ fn columns_harness(kind: ThemeKind, floating: bool, double: bool) -> Harness {
 const EDGE: f32 = 8.0;
 
 fn left(h: &Harness) -> f32 {
-    h.ctx.data(|d| d.get_temp::<f32>(egui::Id::new("left"))).unwrap_or(f32::NAN)
+    h.ctx.data(|d| d.get_temp::<f32>(egui::Id::unique("left"))).unwrap_or(f32::NAN)
 }
 
 /// The tool buttons the last pass drew, in slot order: tool-sized and clickable.
@@ -314,7 +314,7 @@ fn relative(buttons: &[Rect]) -> Vec<(i32, i32)> {
 }
 
 fn palette_area(h: &Harness) -> Rect {
-    h.ctx.memory(|m| m.area_rect(egui::Id::new("toolbar-float"))).expect("the palette is drawn")
+    h.ctx.memory(|m| m.area_rect(egui::Id::unique("toolbar-float"))).expect("the palette is drawn")
 }
 
 /// With `toolbar_double` on, the floating palette is two tools wide and shorter than the one-column

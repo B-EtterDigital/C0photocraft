@@ -21,7 +21,7 @@ const RADII: [&str; 3] = ["radius_sm", "radius", "radius_lg"];
 const SHAPE: &str = "themeTokens must be an object of token names to \"#rrggbb\", \"#rrggbbaa\" or a radius number, or null to clear";
 
 fn store() -> egui::Id {
-    egui::Id::new("photocraft-theme-host")
+    egui::Id::unique("photocraft-theme-host")
 }
 
 /// What became of each key of an override set.
@@ -63,11 +63,11 @@ pub fn put(ctx: &egui::Context, overrides: Option<Arc<Value>>) {
         }
         // The canvas surround caches its dot texture per preset (`canvas::dots`), not per colour.
         for kind in ThemeKind::ALL {
-            d.remove::<egui::TextureHandle>(egui::Id::new(("canvas-dots", format!("{kind:?}"))));
+            d.remove::<egui::TextureHandle>(egui::Id::unique(("canvas-dots", format!("{kind:?}"))));
         }
     });
     // Before the first `apply` there is no preset to redo; that `apply` will pick the set up.
-    if let Some(active) = ctx.data(|d| d.get_temp::<Tokens>(egui::Id::new("photocraft-theme"))) {
+    if let Some(active) = ctx.data(|d| d.get_temp::<Tokens>(egui::Id::unique("photocraft-theme"))) {
         super::apply(ctx, active.kind);
     }
     ctx.request_repaint();

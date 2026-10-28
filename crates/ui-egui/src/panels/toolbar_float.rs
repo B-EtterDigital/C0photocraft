@@ -64,7 +64,7 @@ pub(super) fn host(app: &PhotocraftApp, ctx: &egui::Context, metrics: (f32, f32,
     let (width, button, margin) = metrics;
     let panels = &app.ui.panels;
     let float = panels.toolbar_floating.then(|| {
-        let slots: Vec<usize> = super::visible_sections(&app.session.prefs().toolbar.hidden).iter().map(Vec::len).collect();
+        let slots: Vec<usize> = super::toolbar::visible_sections(&app.session.prefs().toolbar.hidden).iter().map(Vec::len).collect();
         let content = content_height(&Tokens::get(ctx), &slots, button, panels.toolbar_double);
         Float { canvas: app.last_canvas_rect, place: panels.toolbar_float, width, double: panels.toolbar_double, margin, content }
     });
@@ -82,7 +82,7 @@ fn content_height(t: &Tokens, slots: &[usize], button: f32, double: bool) -> f32
     let dividers = if t.pro { 0 } else { slots.len().saturating_sub(1) };
     let tools = rows as f32 * (button + 3.0) + dividers as f32 * 12.0 + if t.pro { button + 3.0 } else { 0.0 };
     let footer = (if t.pro { 8.0 } else { 14.0 })
-        + super::chips_height(t.pro, t.round_chips, t.round_chips && double)
+        + super::toolbar::chips_height(t.pro, t.round_chips, t.round_chips && double)
         + if t.pro { 8.0 + if double { button } else { button * 2.0 + 3.0 } } else { 0.0 }
         + 6.0;
     tools + footer + 4.0
@@ -93,12 +93,8 @@ fn content_height(t: &Tokens, slots: &[usize], button: f32, double: bool) -> f32
 pub(super) type Change = Option<(bool, bool, Place)>;
 
 /// The four toolbar states, as `(label, floating, double)`.
-pub const MODES: [(&str, bool, bool); 4] = [
-    ("Docked, one column", false, false),
-    ("Docked, two columns", false, true),
-    ("Floating, one column", true, false),
-    ("Floating, two columns", true, true),
-];
+pub const MODES: [(&str, bool, bool); 4] =
+    [("Docked, one column", false, false), ("Docked, two columns", false, true), ("Floating, one column", true, false), ("Floating, two columns", true, true)];
 
 /// The four states as selectable items; returns the one picked.
 fn mode_items(ui: &mut egui::Ui, now: (bool, bool)) -> Option<(bool, bool)> {
@@ -153,7 +149,7 @@ pub fn clamp_offset(canvas: Rect, size: Vec2, offset: Vec2) -> Vec2 {
 impl Float {
     fn show(self, ctx: &egui::Context, add_contents: impl FnOnce(&mut egui::Ui)) -> Change {
         let t = Tokens::get(ctx);
-        let id = egui::Id::new("toolbar-float");
+        let id = egui::Id::unique("toolbar-float");
         // The canvas area is the last frame's (the toolbar is drawn before the canvas): when it
         // changed, as it does on the frame the toolbar leaves the frame, draw once more.
         if ctx.data(|d| d.get_temp::<Rect>(id.with("canvas"))) != Some(self.canvas) {
@@ -180,7 +176,7 @@ impl Float {
                 ui.set_width(inner);
                 ui.spacing_mut().item_spacing = vec2(0.0, 3.0);
                 let (strip, grip) = ui.allocate_exact_size(vec2(inner, GRIP), Sense::click_and_drag());
-                grip.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Other, true, crate::i18n::t(GRIP_LABEL)));
+                grip.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Other, true, crate::i18n::t(GRIP_LABEL)));
                 let tint = if grip.hovered() || grip.dragged() { t.text } else { t.text_faint };
                 for column in -1..=1 {
                     for row in [-2.0, 2.0] {
