@@ -22,8 +22,8 @@ use serde_json::{Value, json};
 
 fn services() -> Services {
     Services {
-        import: Some(Box::new(|name: &str, bytes: &[u8], depth: usize| {
-            photocraft_io::import_with_svg_group_depth(name, bytes, depth).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
+        import: Some(Box::new(|name: &str, bytes: &[u8], opts: &photocraft_io::ImportOptions| {
+            photocraft_io::import_with_options(name, bytes, opts).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
         })),
         ..Default::default()
     }

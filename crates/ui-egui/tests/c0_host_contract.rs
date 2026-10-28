@@ -323,8 +323,8 @@ fn h_generative_bridge_commands() {
         "the host calls exactly these"
     );
     let services = photocraft_ui_egui::Services {
-        import: Some(Box::new(|name: &str, bytes: &[u8], depth: usize| {
-            photocraft_io::import_with_svg_group_depth(name, bytes, depth).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
+        import: Some(Box::new(|name: &str, bytes: &[u8], opts: &photocraft_io::ImportOptions| {
+            photocraft_io::import_with_options(name, bytes, opts).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
         })),
         ..Default::default()
     };
@@ -366,11 +366,7 @@ fn h_generative_bridge_commands() {
 /// document (`c0_sessions_bridge.rs` has the behaviour; this is the contract the host reads).
 #[test]
 fn i_sessions_bridge() {
-    assert_eq!(
-        photocraft_ui_egui::c0_sessions::METHODS,
-        ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes"],
-        "the host calls exactly these"
-    );
+    assert_eq!(photocraft_ui_egui::c0_sessions::METHODS, ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes"], "the host calls exactly these");
     let ctx = egui::Context::default();
     let mut app = new_app();
     execute(&mut app, &ctx, "file.new", json!({"width": 12, "height": 9, "name": "first"}));

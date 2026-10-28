@@ -20,8 +20,8 @@ use serde_json::{Value, json};
 
 fn services() -> Services {
     Services {
-        import: Some(Box::new(|name: &str, bytes: &[u8], depth: usize| {
-            photocraft_io::import_with_svg_group_depth(name, bytes, depth).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
+        import: Some(Box::new(|name: &str, bytes: &[u8], opts: &photocraft_io::ImportOptions| {
+            photocraft_io::import_with_options(name, bytes, opts).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string())
         })),
         ..Default::default()
     }
@@ -161,11 +161,12 @@ fn capture_shows_the_visible_layers_only() {
     let (w, _, data) = rgba_of(&unb64(&ok(&mut app, "c0.capture", json!({"scope": "document"}))["png"]));
     assert_eq!(px(&data, w, 2, 2), [250, 0, 0, 255], "the red layer covers the pattern");
     let layer = app.session.active().unwrap().active_layer.unwrap();
-    app.session.edit("hide", |doc, _| {
-        doc.layer_mut(layer).unwrap().visible = false;
-        Ok(())
-    })
-    .unwrap();
+    app.session
+        .edit("hide", |doc, _| {
+            doc.layer_mut(layer).unwrap().visible = false;
+            Ok(())
+        })
+        .unwrap();
     let (w, _, data) = rgba_of(&unb64(&ok(&mut app, "c0.capture", json!({"scope": "document"}))["png"]));
     assert_eq!(px(&data, w, 2, 2), pattern(2, 2), "hidden, it is not in the capture");
 }
