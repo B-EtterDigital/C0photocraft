@@ -45,12 +45,15 @@ moved files and CI policy removals, are now accounted for in that ledger.
 
 ## Verification
 
-Pending at merge checkpoint. First build is queued under `smoac-slot run gate 3 3600 --`;
-the host landing reservation initially holds admission until 13:06 UTC.
+Verification in progress. `cargo test -p photocraft-web` **passed: 20 tests, 0 failed, 0 ignored**.
+It waited 2897 seconds for host admission (landing mode was renewed twice, then a drain load guard).
+Queue-entry load: 5.26 / 9.62 / 14.48. Last pre-admission sample: 10.48 / 13.59 / 14.35.
+After the command: 10.01 / 13.39 / 14.18. Disk before admission and after: 83%.
+UI/engine suites, wasm checks, clippy and layer check remain pending.
 All Cargo commands use `CARGO_BUILD_JOBS=4` and the requested shared target directory.
 Initial pre-build disk: 81%; load averages 5.26 / 9.62 / 14.48.
 No Rust crate or Cargo manifest exists under c0/; host tests live in ui-egui and photocraft-web.
-Final pass counts, per-command load pairs and upstream-red attribution will be recorded here.
+Remaining pass counts, per-command load pairs and upstream-red attribution will be recorded here. The six edited host modules/harness files pass rustfmt --check; git diff --check is clean.
 No release web page build requested or performed; release wasm size unmeasured, cap unchanged at 25165824 bytes.
 
 ## What upstream adds
