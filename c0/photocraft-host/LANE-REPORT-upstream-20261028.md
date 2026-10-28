@@ -51,8 +51,8 @@ is **54 added in 21 files, 20 replaced, 5 removed, 2 blanks**, versus a consiste
 
 All Cargo commands run under `smoac-slot run gate 3 3600 --` with `CARGO_BUILD_JOBS=4` and
 `CARGO_TARGET_DIR=/srv/smoac/build/sow-fix-photocraft-target`. UI/engine tests use `RUST_TEST_THREADS=4`.
-Disk is checked before every build; the wrapper stops above 88%. Admission waits so far: 2897 s,
-819 s, 1199 s, 225 s. Host-managed gate caps changed during the lane; this lane never adjusted them.
+Disk is checked before every build; the wrapper stops above 88%. Host-managed gate caps and reservations changed during this lane; this lane never adjusted them.
+Several admission waits exceeded 15 minutes; the last verification batch is still queued.
 
 | Command / context | Result | Load before (1/5/15 min) | Load after | Disk before -> after |
 |---|---|---|---|---|
@@ -60,7 +60,14 @@ Disk is checked before every build; the wrapper stops above 88%. Admission waits
 | UI first build (old importer fixtures) | compile error E0631; repaired | 8.48 / 11.20 / 12.90 | 26.96 / 18.36 / 15.34 | 83% -> 84% |
 | UI first complete run (narrow Pro fixture) | 4353 passed, 29 failed, 19 ignored; Pro fixture repaired | 13.09 / 14.13 / 14.81 | 18.51 / 21.35 / 18.47 | 83% -> 84% |
 | Pure upstream UI, same full command | 4278 passed, 28 failed, 19 ignored | 18.63 / 20.25 / 19.03 | 19.44 / 21.86 / 20.42 | 85% -> 86% |
-| Final fork UI, same full command | 4354 passed, 28 upstream-red, 19 ignored; zero fork-only failures | 19.44 / 21.86 / 20.42 | 16.82 / 16.92 / 18.44 | 86% -> 86% |
+| Fork UI after merge repairs, same full command | 4354 passed, 28 upstream-red, 19 ignored; zero fork-only failures | 19.44 / 21.86 / 20.42 | 16.82 / 16.92 / 18.44 | 86% -> 86% |
+| Engine `cargo test -p photocraft-engine --no-fail-fast` | **2629 passed, 0 failed, 20 ignored** | 16.82 / 16.92 / 18.44 | 9.73 / 12.92 / 16.31 | 86% -> 82% |
+| New minimum-coordinate regression before fix | 1 failed: confirmed signed-absolute-value overflow | 13.02 / 13.43 / 15.13 | 16.42 / 14.28 / 15.35 | 83% -> 83% |
+| Final full fork UI after overflow fix | **4355 passed, 28 upstream-red, 19 ignored; zero fork-only failures** | 16.42 / 14.28 / 15.35 | 18.61 / 16.29 / 15.93 | 83% -> 83% |
+| Final web tests | **20 passed, 0 failed, 0 ignored** | 18.61 / 16.29 / 15.93 | 16.90 / 16.03 / 15.85 | 83% -> 83% |
+| wasm default check | **pass** | 16.90 / 16.03 / 15.85 | 16.51 / 15.97 / 15.83 | 83% -> 83% |
+| wasm `--features page-control,heif` | **pass** | 16.51 / 15.97 / 15.83 | 16.31 / 15.93 / 15.82 | 83% -> 83% |
+| First strict native clippy | Three C0 diagnostics; repaired redundant casts and fixed-size RGBA iteration | 16.31 / 15.93 / 15.82 | 13.39 / 15.26 / 15.60 | 83% -> 83% |
 
 The complete UI command on both trees is `cargo test -p photocraft-ui-egui --no-fail-fast`.
 The comparison keys failures by test binary and full test name; every final fork failure also
@@ -73,14 +80,20 @@ Every assertion remains; overflow is separately tested by upstream's tab tests.
 
 Host-specific UI proof: all **66 integration tests** pass (clone offset 4, control passes 5,
 generative bridge 21, host contract 10, sessions 7, synthetic input 5, floating toolbar 14), plus
-**10 unit tests** (ants clock 6, host palette 3, stable filtered tiling 1). The upstream ants tests
+**11 unit tests** (ants clock 6, host palette 3, stable filtered tiling 1, minimum-coordinate rejection 1). The upstream ants tests
 also pass, including whole device-pixel thickness, equal rectangle edges at fractional scale and
 antialiased slanted lines: this proves the old point-snap wrapper is unnecessary in the new renderer.
 The fixed-tick phase and repaint scheduling remain in force. No crate/manifest exists under c0/;
 its Rust host tests live in photocraft-ui-egui and photocraft-web.
 
-Engine tests, default and host-feature wasm checks, native/wasm clippy, layer check and offscreen
-palette captures are still running/pending. The edited host modules/harness pass rustfmt --check;
+The page bridge now constructs ControlRequest through its constructor, initializing upstream's new
+dispatch state. Rectangle validation uses unsigned_abs so i64::MIN is rejected without panic; the
+new test reproduced the original overflow before the fix and passes for both axes afterward.
+The later lint-only cleanup removes redundant u32 casts and uses fixed-size four-channel chunks
+with the same per-pixel conversion; it changes only the C0 generative module.
+
+Final native/wasm clippy, repeat wasm checks after lint-only cleanup, targeted generative retests,
+layer check and offscreen palette captures are still queued. The edited host modules/harness pass rustfmt --check;
 git diff --check is clean. No release web page was built: release wasm size unmeasured, cap
 unchanged at **25165824 bytes**.
 
