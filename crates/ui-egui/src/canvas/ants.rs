@@ -44,7 +44,7 @@ impl Style {
         let width = ((ppp - 0.01).ceil() as i64).clamp(1, 8);
         let dash = DASH * width;
         let time = if time.is_finite() { time.max(0.0) } else { 0.0 };
-        let phase = (((time * SPEED).floor() * width as f64) % (2 * dash) as f64) as i64;
+        let phase = ((crate::c0_ants::steps_at(time, SPEED) * width as f64) % (2 * dash) as f64) as i64;
         Self { ppp, width, dash, phase }
     }
 

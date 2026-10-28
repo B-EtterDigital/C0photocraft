@@ -13,9 +13,14 @@ const DASH: f32 = 4.0;
 /// Steps per second: as upstream's `time * 10.0` points per second, in whole steps.
 pub const TICKS_PER_SECOND: f64 = 10.0;
 
+/// Whole steps elapsed at upstream's chosen march rate.
+pub fn steps_at(time: f64, rate: f64) -> f64 {
+    (time * rate).floor()
+}
+
 /// The tick `time` (seconds) is in.
 pub fn tick(time: f64) -> u64 {
-    (time.max(0.0) * TICKS_PER_SECOND).floor() as u64
+    steps_at(time.max(0.0), TICKS_PER_SECOND) as u64
 }
 
 /// Seconds from `time` to the start of the next tick (never zero, so a repaint asked for with it
