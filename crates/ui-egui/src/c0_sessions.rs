@@ -162,7 +162,9 @@ pub(crate) fn arranged_cells(app: &PhotocraftApp, rect: egui::Rect) -> Option<Ve
     let active = app.session.active_index()?;
     let idx = visible.iter().position(|&i| i == active)?;
     let cells = crate::view_cmds::cells(&app.ui.view.arrange, rect, visible.len())?;
-    let start = app.arrange_start.min(visible.len().saturating_sub(cells.len()));
+    // Upstream stores a document index, while this layout uses visible ranks.
+    let start = visible.iter().position(|&i| i >= app.arrange_start).unwrap_or(visible.len());
+    let start = start.min(visible.len().saturating_sub(cells.len()));
     let start = if idx < start { idx } else { start.max((idx + 1).saturating_sub(cells.len())) };
     Some(visible.into_iter().skip(start).zip(cells).collect())
 }
@@ -177,19 +179,26 @@ mod sync_tests {
     #[test]
     fn filtered_tiles_keep_their_positions_when_another_visible_document_activates() -> Result<(), String> {
         let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
-        for name in ["first", "hidden", "last"] {
+        for name in ["hidden before", "first", "hidden between", "second", "last"] {
             app.session.add_document(Document::new(name, Size::new(8, 8), ColorMode::Rgb, SampleType::U8), None);
         }
         let ids: Vec<u64> = app.session.documents().iter().map(|d| d.uid).collect();
-        app.session.set_visible(Some(vec![ids[0], ids[2]]))?;
+        app.session.set_visible(Some(vec![ids[1], ids[3], ids[4]]))?;
         app.ui.view.arrange = "twoUpVertical".into();
         let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 600.0));
-        app.session.set_active(0);
+        app.session.set_active(1);
         let first = arranged_cells(&app, rect).ok_or("no tiles")?;
-        assert_eq!(first.iter().map(|(i, _)| *i).collect::<Vec<_>>(), [0, 2]);
+        assert_eq!(first.iter().map(|(i, _)| *i).collect::<Vec<_>>(), [1, 3]);
         assert!(first[0].1.right() <= first[1].1.left());
-        app.session.set_active(2);
+        app.arrange_start = first.first().ok_or("no first tile")?.0;
+        app.session.set_active(3);
         assert_eq!(arranged_cells(&app, rect), Some(first));
+        app.session.set_active(4);
+        let last = arranged_cells(&app, rect).ok_or("no last tiles")?;
+        assert_eq!(last.iter().map(|(i, _)| *i).collect::<Vec<_>>(), [3, 4]);
+        app.arrange_start = last.first().ok_or("no last tile")?.0;
+        app.session.set_active(3);
+        assert_eq!(arranged_cells(&app, rect), Some(last));
         Ok(())
     }
 }
