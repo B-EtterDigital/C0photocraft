@@ -212,7 +212,9 @@ fn activate_and_close_by_id_with_the_unsaved_changes_prompt() {
 
 fn harness(theme: ThemeKind, names: &[&'static str]) -> Harness<'static, PhotocraftApp> {
     let names = names.to_vec();
-    let mut h = Harness::builder().with_size(vec2(1100.0, 700.0)).with_max_steps(64).build_eframe(move |cc| {
+    // Upstream keeps complete tab titles now; this fixture tests filtering with room for all tabs.
+    // Overflow behavior is covered by upstream's canvas/tabs_tests.rs.
+    let mut h = Harness::builder().with_size(vec2(1800.0, 700.0)).with_max_steps(64).build_eframe(move |cc| {
         PhotocraftApp::setup_context(&cc.egui_ctx, theme);
         let mut app = new_app();
         app.run("prefs.set", json!({"values": {"interface.theme": theme.id()}})).unwrap();
