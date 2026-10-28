@@ -53,7 +53,8 @@ All Cargo commands run under `smoac-slot run gate 3 3600 --` with `CARGO_BUILD_J
 `CARGO_TARGET_DIR=/srv/smoac/build/sow-fix-photocraft-target`. UI/engine tests use `RUST_TEST_THREADS=4`.
 Disk is checked before every build; the wrapper stops above 88%. Host-managed gate caps and reservations changed during this lane; this lane never adjusted them.
 Several admission waits exceeded 15 minutes. The final generative retests and second lint attempt
-were admitted after 3357 seconds. The rerun after its test-only lint repair is queued.
+were admitted after 3357 seconds. The rerun after its test-only lint repair was admitted after
+2922 seconds; every Cargo invocation still ran under the requested slot wrapper.
 
 | Command / context | Result | Load before (1/5/15 min) | Load after | Disk before -> after |
 |---|---|---|---|---|
@@ -72,6 +73,14 @@ were admitted after 3357 seconds. The rerun after its test-only lint repair is q
 | Generative bridge after lint cleanup | **21 passed** | 8.94 / 12.58 / 14.58 | 10.89 / 12.82 / 14.63 | 81% -> 81% |
 | Minimum-coordinate regression after lint cleanup | **1 passed** | 10.89 / 12.82 / 14.63 | 11.25 / 12.72 / 14.54 | 81% -> 81% |
 | Strict native clippy, second attempt | C0 test constant assertion warning; converted to a compile-time assertion, check retained | 11.25 / 12.72 / 14.54 | 11.84 / 12.79 / 14.47 | 81% -> 81% |
+| First default wasm check | pass | 9.73 / 12.92 / 16.31 | 9.58 / 12.20 / 15.80 | 82% -> 82% |
+| First host-feature wasm check | E0063: new ControlRequest dispatch field; repaired with constructor | 9.58 / 12.20 / 15.80 | 9.37 / 11.85 / 15.55 | 82% -> 82% |
+| Final native clippy, all targets, `-D warnings` | **pass; no source warnings** | 23.96 / 26.01 / 22.37 | 23.96 / 26.01 / 22.37 | 80% -> 80% |
+| Web tests after compile-time assertion repair | **20 passed, 0 failed** | 23.96 / 26.01 / 22.37 | 22.13 / 25.51 / 22.27 | 80% -> 80% |
+| Final default wasm check after lint cleanup | **pass** | 22.13 / 25.51 / 22.27 | 21.88 / 25.40 / 22.25 | 80% -> 80% |
+| Final wasm check with `page-control,heif` | **pass** | 21.88 / 25.40 / 22.25 | 20.77 / 25.11 / 22.17 | 80% -> 80% |
+| Wasm clippy, host features | **pass; zero fork warnings, ten unchanged-upstream warnings** | 20.77 / 25.11 / 22.17 | 22.50 / 24.92 / 22.21 | 80% -> 80% |
+| `cargo xtask layers` | **pass; 31 crates, no violations** | 22.50 / 24.92 / 22.21 | 26.36 / 25.65 / 22.51 | 80% -> 80% |
 
 The complete UI command on both trees is `cargo test -p photocraft-ui-egui --no-fail-fast`.
 The comparison keys failures by test binary and full test name; every final fork failure also
@@ -99,8 +108,16 @@ with the same per-pixel conversion; it changes only the C0 generative module. Th
 capacity assertion is now evaluated in a const block to satisfy assertions_on_constants; the
 capacity requirement and request-limit test assertions are retained.
 
-Final native/wasm clippy, repeat wasm checks after lint-only cleanup, targeted generative retests,
-layer check and offscreen palette captures are still queued. The edited host modules/harness pass rustfmt --check;
+Native clippy passes with `cargo clippy -p photocraft-engine -p photocraft-ui-egui -p photocraft-web
+--all-targets -- -D warnings`. Both final wasm checks pass after all source/test repairs. Wasm
+clippy also passes with `--target wasm32-unknown-unknown --features
+photocraft-web/page-control,photocraft-web/heif --message-format=json`. Its diagnostics were audited
+against git blobs: all ten warning sites are byte-identical to pinned upstream; zero warning
+sites are C0 or modified source. Seven are dead_code warnings; the others are drop_non_drop
+(format/store.rs), needless_return (dialogs/camera_raw_gpu.rs) and derivable_impls (updates_ui.rs).
+The three unused optional egui patch notices are inherited Cargo manifest notices, with the
+upstream lock unchanged. The layer check passes for all 31 crates. Offscreen palette captures
+are still running. The edited host modules/harness pass rustfmt --check;
 git diff --check is clean. No release web page was built: release wasm size unmeasured, cap
 unchanged at **25165824 bytes**.
 
