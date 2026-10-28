@@ -97,7 +97,12 @@ fn rect_param(v: &Value, what: &str) -> Result<Rect, String> {
     if w < 1 || h < 1 {
         return Err(format!("{what}.width and {what}.height must be at least 1"));
     }
-    if w > MAX_SIDE || h > MAX_SIDE || (w as u64) * (h as u64) > MAX_PIXELS || x.abs() > MAX_SIDE * 4 || y.abs() > MAX_SIDE * 4 {
+    if w > MAX_SIDE
+        || h > MAX_SIDE
+        || (w as u64) * (h as u64) > MAX_PIXELS
+        || x.unsigned_abs() > (MAX_SIDE * 4) as u64
+        || y.unsigned_abs() > (MAX_SIDE * 4) as u64
+    {
         return Err(format!("{what} is larger than {MAX_SIDE} pixels a side or {} million pixels", MAX_PIXELS / 1_000_000));
     }
     Ok(Rect::new(x as i32, y as i32, (x + w) as i32, (y + h) as i32))
