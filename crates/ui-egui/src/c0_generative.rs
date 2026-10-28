@@ -215,7 +215,7 @@ fn fitted(canvas: Rect, iw: u32, ih: u32) -> Rect {
 fn image_surface(width: u32, height: u32, rgba: &[u8], target: Rect, format: PixelFormat) -> Surface {
     let source = Rect::new(0, 0, width as i32, height as i32);
     let mut surface = Surface::from_interleaved(PixelFormat::RGBA8, source, rgba);
-    let (tw, th) = (target.width() as u32, target.height() as u32);
+    let (tw, th) = (target.width(), target.height());
     if (tw, th) != (width, height) {
         let (sx, sy) = (f64::from(tw) / f64::from(width), f64::from(th) / f64::from(height));
         // Photoshop's choice: Bicubic Smoother to enlarge, Bicubic Sharper to reduce.
@@ -232,8 +232,8 @@ fn image_surface(width: u32, height: u32, rgba: &[u8], target: Rect, format: Pix
     let values = surface.read_region(target);
     let n = format.channels();
     let mut data = vec![0.0f32; target.width() as usize * target.height() as usize * n];
-    for (rgba, out) in values.chunks_exact(4).zip(data.chunks_exact_mut(n)) {
-        photocraft_raster::from_rgba_into(&format, [rgba[0], rgba[1], rgba[2], rgba[3]], out);
+    for (rgba, out) in values.as_chunks::<4>().0.iter().zip(data.chunks_exact_mut(n)) {
+        photocraft_raster::from_rgba_into(&format, *rgba, out);
     }
     let mut converted = Surface::new(format);
     converted.write_region(target, &data);
