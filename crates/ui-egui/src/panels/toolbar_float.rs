@@ -72,7 +72,7 @@ pub(super) fn host(app: &PhotocraftApp, ctx: &egui::Context, metrics: (f32, f32,
 }
 
 /// The height [`super::toolbar`]'s contents take: the tool rows, the group dividers, Pro's
-/// Edit Toolbar button and the footer (colour chips, Pro's Quick Mask and Screen Mode buttons).
+/// Edit Toolbar button and the footer (colour chips, Quick Mask and Screen Mode buttons).
 /// Mirrors the spacing in `toolbar`; a few points of slack cover what it does not mirror, and a
 /// shortfall only makes the tool column scroll.
 fn content_height(t: &Tokens, slots: &[usize], button: f32, double: bool) -> f32 {
@@ -80,12 +80,14 @@ fn content_height(t: &Tokens, slots: &[usize], button: f32, double: bool) -> f32
     // Pro has no group dividers, so its two columns fill every row across groups.
     let rows: usize = if t.pro { slots.iter().sum::<usize>().div_ceil(per_row) } else { slots.iter().map(|n| n.div_ceil(per_row)).sum() };
     let dividers = if t.pro { 0 } else { slots.len().saturating_sub(1) };
-    let tools = rows as f32 * (button + 3.0) + dividers as f32 * 12.0 + if t.pro { button + 3.0 } else { 0.0 };
+    let tools = rows as f32 * (button + 3.0) + dividers as f32 * 12.0 + button + 3.0;
     let footer = (if t.pro { 8.0 } else { 14.0 })
         + super::toolbar::chips_height(t.pro, t.round_chips, t.round_chips && double)
-        + if t.pro { 8.0 + if double { button } else { button * 2.0 + 3.0 } } else { 0.0 }
+        + 8.0
+        + if double { button } else { button * 2.0 + 3.0 }
         + 6.0;
-    tools + footer + 4.0
+    // Every theme now draws the 14-point chevron and its gap above the tools.
+    tools + footer + 14.0 + 4.0 + 4.0
 }
 
 /// A change the palette's own controls asked for: the new `toolbar_floating`, `toolbar_double`
