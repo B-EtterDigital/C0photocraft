@@ -75,9 +75,9 @@ Liquify previews and focused numeric fields, Puppet Warp pins, crop boxes and hi
 
 - Home: Auto Show Home Screen can be disabled; an empty workspace then replaces Home. Our community-links switch still gates Home and About links, default true.
 - Menus: new commands and dynamic choices remain discoverable through engine.commands / ui.menu.list. Full-title tab sizing changes overflow behavior; the host filter now feeds the shared fitter.
-- Panels: shared craft_ui docking replaces native docking code. Floating toolbar retains upstream tool buttons, RTL panel direction and the new chevron in every theme. Palette sizing still depends on toolbar spacing; native viewport interaction needs a visual follow-up beyond headless tests.
+- Panels: shared craft_ui docking replaces native docking code. Floating toolbar retains upstream tool buttons, RTL panel direction and the new chevron in every theme. The palette height estimate now includes the all-theme chevron, Edit Toolbar, Quick Mask and Screen Mode controls. Palette sizing still depends on toolbar spacing; native viewport interaction needs a visual follow-up beyond headless tests.
 - Theme: egui 0.37 uses Role and Id::unique; our palette and harness IDs were updated. The canvas-dot texture cache key still matches our invalidation key. Runtime tokens resolve through upstream's parser and apply path.
-- Community links: switch remains default-on and is omitted from workspace saves, as before. The separate cleanup removes workflows and docs/brand material except its license. The compiled titlebar icon now lives under assets/app-icon, not docs/brand; no blank replacement at docs/brand is required.
+- Community links: switch remains default-on and is omitted from workspace saves, as before. The separate cleanup removes workflows and docs/brand material except its license. The compiled titlebar icon now lives under assets/app-icon, not docs/brand and can still show upstream branding if the host enables that bar; no blank replacement at docs/brand is required.
 - Agent server: control dispatch moved to control/dispatch.rs; c0 methods stay ahead of upstream methods. eframe 0.37 still exposes WebRunner::add_event_listener and AppRunner::logic. New command rows include needsDocument/disabledReason/keywords. Native control authentication/path changes are upstream; the page bridge retains its own pass pump and request limits.
 
 ## New upstream commands and menu items
@@ -89,17 +89,22 @@ font favourites/library filters, export presets, layer XMP, guide editing/ruler 
 face detection and update checks. Some IDs existed as disabled catalog entries before acquiring implementations.
 The source inventory below also includes newly explicit shell/tool aliases (not all are new visible tools).
 
-New literal IDs absent from the baseline source (engine, shell and menu declarations). Existing menu entries that acquired implementations and generated command families are listed separately below.
+New literal command declarations and shell aliases (including constant-valued IDs), compared with the merge-base registry. Generated families and aliases are included where declared as tuples. The engine command list remains the runtime authority.
 
 - `actions.assignSet` — `crates/engine/src/cmd/actions_edit_cmds.rs`
 - `actions.conditional` — `crates/engine/src/cmd/actions_edit_cmds.rs`
 - `actions.dialog` — `crates/engine/src/cmd/actions_edit_cmds.rs`
 - `actions.insert` — `crates/engine/src/cmd/actions_edit_cmds.rs`
+- `actions.load` — `crates/engine/src/cmd/atn_cmds.rs`
+- `actions.photoshopStep` — `crates/engine/src/cmd/atn_cmds.rs`
+- `actions.save` — `crates/engine/src/cmd/atn_cmds.rs`
 - `actions.setColor` — `crates/engine/src/cmd/actions_cmds.rs`
+- `actions.stopMessage` — `crates/engine/src/cmd/atn_cmds.rs`
 - `brush.mixer.clean` — `crates/engine/src/cmd/brush_cmds.rs`
 - `brush.mixer.load` — `crates/engine/src/cmd/brush_cmds.rs`
 - `brush.mixer.sample` — `crates/engine/src/cmd/brush_cmds.rs`
 - `brush.presets.importImage` — `crates/engine/src/cmd/preset_import_cmds.rs`
+- `channel.target.layerMask` — `crates/engine/src/cmd/channel_cmds.rs`
 - `document.recent.add` — `crates/engine/src/cmd/document_preset_cmds.rs`
 - `document.recent.list` — `crates/engine/src/cmd/document_preset_cmds.rs`
 - `edit.fillHistory` — `crates/engine/src/cmd/fill_key_cmds.rs`
@@ -115,24 +120,33 @@ New literal IDs absent from the baseline source (engine, shell and menu declarat
 - `history.clear` — `crates/engine/src/cmd/history_menu_cmds.rs`
 - `history.deleteSnapshot` — `crates/engine/src/cmd/history_cmds.rs`
 - `history.newSnapshot` — `crates/engine/src/cmd/history_cmds.rs`
+- `history.options` — `crates/engine/src/cmd/history_options_cmds.rs`
 - `history.redo` — `crates/engine/src/cmd/history_cmds.rs`
 - `history.renameSnapshot` — `crates/engine/src/cmd/history_cmds.rs`
 - `history.selectSnapshot` — `crates/engine/src/cmd/history_cmds.rs`
+- `history.selectState` — `crates/engine/src/cmd/history_select_cmds.rs`
+- `history.setSource` — `crates/engine/src/cmd/history_source_cmds.rs`
 - `history.stepBackward` — `crates/engine/src/cmd/history_menu_cmds.rs`
 - `history.stepForward` — `crates/engine/src/cmd/history_menu_cmds.rs`
 - `history.undo` — `crates/engine/src/cmd/history_cmds.rs`
 - `image.detectFaces` — `crates/engine/src/cmd/face_cmds.rs`
 - `layer.artboard.addBeside` — `crates/engine/src/cmd/artboard_cmds.rs`
-- `layer.fill.pattern.set` — `crates/engine/src/cmd/atn_cmds/steps_make.rs`
-- `layer.layerStyle` — `crates/engine/src/layer_style.rs`
+- `layer.fill.pattern.set` — `crates/engine/src/cmd/pattern_fill_cmds.rs`
 - `layer.layerStyle.contours.delete` — `crates/engine/src/cmd/contour_lib_cmds.rs`
 - `layer.layerStyle.contours.list` — `crates/engine/src/cmd/contour_lib_cmds.rs`
 - `layer.layerStyle.contours.load` — `crates/engine/src/cmd/contour_lib_cmds.rs`
 - `layer.layerStyle.contours.new` — `crates/engine/src/cmd/contour_lib_cmds.rs`
 - `layer.layerStyle.contours.save` — `crates/engine/src/cmd/contour_lib_cmds.rs`
+- `layer.list` — `crates/engine/src/cmd/layer_list_cmds.rs`
 - `layer.mergeGroup` — `crates/engine/src/cmd.rs`
+- `layer.smartFilter.transfer` — `crates/engine/src/cmd/smart_cmds.rs`
 - `layer.toggleLockTransparency` — `crates/engine/src/cmd/extra_cmds.rs`
+- `layer.xmpMetadata` — `crates/engine/src/cmd/layer_xmp_cmds.rs`
 - `layerComp.reorder` — `crates/engine/src/cmd/comps_cmds.rs`
+- `paint.artHistoryBrush` — `crates/engine/src/cmd/retouch_cmds.rs`
+- `select.loadLuminosity` — `crates/engine/src/cmd/channel_cmds.rs`
+- `style.presets.exportAsl` — `crates/engine/src/cmd/style_asl_cmds.rs`
+- `style.presets.importAsl` — `crates/engine/src/cmd/style_asl_cmds.rs`
 - `tools.firstBrush` — `crates/engine/src/cmd/brush_key_cmds.rs`
 - `tools.lastBrush` — `crates/engine/src/cmd/brush_key_cmds.rs`
 - `tools.nextBrush` — `crates/engine/src/cmd/brush_key_cmds.rs`
@@ -206,9 +220,9 @@ New literal IDs absent from the baseline source (engine, shell and menu declarat
 - `tools.select.verticalType` — `crates/engine/src/shell_commands.rs`
 - `tools.select.verticalTypeMask` — `crates/engine/src/shell_commands.rs`
 - `tools.select.zoom` — `crates/engine/src/shell_commands.rs`
-- `tools.temporary.erase` — `crates/engine/src/prefs/shortcuts.rs`
 - `type.attachToPath` — `crates/engine/src/cmd/type_extra_cmds.rs`
 - `type.detachFromPath` — `crates/engine/src/cmd/type_extra_cmds.rs`
+- `type.fillPath` — `crates/engine/src/cmd/type_area_cmds.rs`
 - `type.font.favorite` — `crates/engine/src/cmd/font_library_cmds.rs`
 - `type.font.library` — `crates/engine/src/cmd/font_library_cmds.rs`
 - `ui.dock` — `crates/engine/src/shell_commands.rs`
