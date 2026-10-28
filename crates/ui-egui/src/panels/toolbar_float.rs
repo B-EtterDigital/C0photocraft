@@ -1,7 +1,7 @@
 //! The toolbar as a palette over the canvas: a third mode after one and two columns
 //! (`Panels.toolbar_floating`).
 //!
-//! [`super::toolbar`] draws the same tools either way; this module only swaps what they are drawn
+//! [`super::toolbar()`] draws the same tools either way; this module only swaps what they are drawn
 //! in. Docked, that is upstream's left panel. Floating, it is an area above the canvas with a grip
 //! to drag it by and a pin that locks it in place; nothing is taken from the frame, so the canvas
 //! keeps the full width. The palette's corner is remembered in `Panels.toolbar_float` (saved with
@@ -41,7 +41,7 @@ pub const GRIP_LABEL: &str = "Move Toolbar";
 /// The pin's accessible name and tooltip.
 pub const PIN_LABEL: &str = "Pin Toolbar";
 
-/// What [`super::toolbar`] draws its tools in: upstream's panel, or the palette.
+/// What [`super::toolbar()`] draws its tools in: upstream's panel, or the palette.
 pub(super) struct Host {
     panel: egui::Panel,
     float: Option<Float>,
@@ -71,7 +71,7 @@ pub(super) fn host(app: &PhotocraftApp, ctx: &egui::Context, metrics: (f32, f32,
     Host { panel, float }
 }
 
-/// The height [`super::toolbar`]'s contents take: the tool rows, the group dividers, Pro's
+/// The height [`super::toolbar()`]'s contents take: the tool rows, the group dividers, Pro's
 /// Edit Toolbar button and the footer (colour chips, Quick Mask and Screen Mode buttons).
 /// Mirrors the spacing in `toolbar`; a few points of slack cover what it does not mirror, and a
 /// shortfall only makes the tool column scroll.
