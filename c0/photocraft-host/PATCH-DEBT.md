@@ -45,7 +45,7 @@ Was 25 added lines in 8 files before the toolbar and clone changes (2026-10-13):
 (new to the list), and `retouch_ui.rs` (new to the list) with two lines replaced and none added.
 
 New files of ours (no debt): `crates/engine/src/c0_sessions.rs`, `crates/ui-egui/src/c0_sessions.rs`, `apps/photocraft-web/src/page_control.rs`,
-`apps/photocraft-web/src/page_control/bridge.rs`, `crates/ui-egui/src/c0_generative.rs`, `crates/ui-egui/src/theme/host.rs`,
+`apps/photocraft-web/src/page_control/bridge.rs`, `crates/ui-egui/src/c0_generative.rs`, `crates/ui-egui/src/c0_ants.rs`, `crates/ui-egui/src/theme/host.rs`,
 `crates/ui-egui/src/panels/toolbar_float.rs`, `crates/ui-egui/tests/c0_*.rs`, `c0/photocraft-host/`.
 
 ## Conflict accounting for 2026-10-28

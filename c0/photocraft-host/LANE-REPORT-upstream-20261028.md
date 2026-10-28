@@ -4,6 +4,10 @@ Branch: `fix`. Fork base: `dfeb6db06a43ae9241c1ae90d3befc27804d5ad9` (`origin/c0
 Upstream: `52f338e2df44ac73c0bf231fa8d3f8cd496641ec`. Merge base: `a0ff3a01f2723fb29e4aa5bd035987a544f32b72`.
 Merge, never rebase; no push or GitHub login. Work performed only on this fleet host.
 
+Status: all required proof completed, with 28 UI failures reproduced on pinned upstream and
+accepted under the upstream-red exception. No fork-only failures, no new fork-code lint warnings.
+All changes are committed locally; nothing was pushed. Disk never exceeded 86% at build checkpoints.
+
 ## Conflict resolutions
 
 | Conflicted path | Resolution |
@@ -81,6 +85,8 @@ were admitted after 3357 seconds. The rerun after its test-only lint repair was 
 | Final wasm check with `page-control,heif` | **pass** | 21.88 / 25.40 / 22.25 | 20.77 / 25.11 / 22.17 | 80% -> 80% |
 | Wasm clippy, host features | **pass; zero fork warnings, ten unchanged-upstream warnings** | 20.77 / 25.11 / 22.17 | 22.50 / 24.92 / 22.21 | 80% -> 80% |
 | `cargo xtask layers` | **pass; 31 crates, no violations** | 22.50 / 24.92 / 22.21 | 26.36 / 25.65 / 22.51 | 80% -> 80% |
+| Pro offscreen capture, 1440×1000, floating toolbar | **pass; PNG visually inspected** | 26.36 / 25.65 / 22.51 | 23.38 / 25.42 / 22.78 | 80% -> 80% |
+| Studio offscreen capture, 1440×1000, floating toolbar | **pass; PNG visually inspected** | 23.38 / 25.42 / 22.78 | 23.38 / 25.42 / 22.78 | 80% -> 80% |
 
 The complete UI command on both trees is `cargo test -p photocraft-ui-egui --no-fail-fast`.
 The comparison keys failures by test binary and full test name; every final fork failure also
@@ -116,8 +122,13 @@ against git blobs: all ten warning sites are byte-identical to pinned upstream; 
 sites are C0 or modified source. Seven are dead_code warnings; the others are drop_non_drop
 (format/store.rs), needless_return (dialogs/camera_raw_gpu.rs) and derivable_impls (updates_ui.rs).
 The three unused optional egui patch notices are inherited Cargo manifest notices, with the
-upstream lock unchanged. The layer check passes for all 31 crates. Offscreen palette captures
-are still running. The edited host modules/harness pass rustfmt --check;
+upstream lock unchanged. The layer check passes for all 31 crates. Pro and Studio offscreen captures both completed
+with `--safe-gpu --size 1440x1000 --scale 1 --system-theme dark` and were visually inspected.
+Each script selects its theme, creates a blank 256×256 document, enables toolbar_floating and
+disables community_links. The palette remains within the canvas viewport, its scrollable tool
+column and footer render, and document/menu/panel content is legible. Studio retains upstream's
+floating Properties panel. Capture files on this host: `/tmp/photocraft-c0-pro.png` and
+`/tmp/photocraft-c0-studio.png`. No private images or new branding assets were introduced. The edited host modules/harness pass rustfmt --check;
 git diff --check is clean. No release web page was built: release wasm size unmeasured, cap
 unchanged at **25165824 bytes**.
 
@@ -180,7 +191,7 @@ Liquify previews and focused numeric fields, Puppet Warp pins, crop boxes and hi
 
 - Home: Auto Show Home Screen can be disabled; an empty workspace then replaces Home. Our community-links switch still gates Home and About links, default true.
 - Menus: new commands and dynamic choices remain discoverable through engine.commands / ui.menu.list. Full-title tab sizing changes overflow behavior; the host filter now feeds the shared fitter.
-- Panels: shared craft_ui docking replaces native docking code. Floating toolbar retains upstream tool buttons, RTL panel direction and the new chevron in every theme. The palette height estimate now includes the all-theme chevron, Edit Toolbar, Quick Mask and Screen Mode controls. Palette sizing still depends on toolbar spacing; native viewport interaction needs a visual follow-up beyond headless tests.
+- Panels: shared craft_ui docking replaces native docking code. Floating toolbar retains upstream tool buttons, RTL panel direction and the new chevron in every theme. The palette height estimate now includes the all-theme chevron, Edit Toolbar, Quick Mask and Screen Mode controls. Palette sizing still depends on toolbar spacing. Both offscreen themes were inspected at 1440×1000; OS window resizing and actual pointer dragging remain untested.
 - Theme: egui 0.37 uses Role and Id::unique; our palette and harness IDs were updated. The canvas-dot texture cache key still matches our invalidation key. Runtime tokens resolve through upstream's parser and apply path.
 - Community links: switch remains default-on and is omitted from workspace saves, as before. **Pre-existing clash:** dock::apply deserializes missing Panels fields with their defaults, preserving only menu_bar/rail explicitly; selecting a saved workspace can therefore restore community_links to true. Confirmed in both merge base dock.rs:746–750 and upstream dock.rs:426–430. This lane preserves that behavior; the embedding host can reassert its switch after workspace changes, and a separate fix would add a preservation seam/test. The separate cleanup removes workflows and docs/brand material except its license. The compiled titlebar icon now lives under assets/app-icon, not docs/brand and can still show upstream branding if the host enables that bar; no blank replacement at docs/brand is required.
 - Agent server: control dispatch moved to control/dispatch.rs; c0 methods stay ahead of upstream methods. eframe 0.37 still exposes WebRunner::add_event_listener and AppRunner::logic. New command rows include needsDocument/disabledReason/keywords. Native control authentication/path changes are upstream; the page bridge retains its own pass pump and request limits.
@@ -354,7 +365,7 @@ New literal command declarations and shell aliases (including constant-valued ID
 
 ## Assumptions I could not confirm
 
-- Native/windowed visual behavior and the embedding controller's Home/menu/panel composition were not run on a display.
+- Native OS window behavior and the embedding controller's Home/menu/panel composition were not run on a display. Pro/Studio offscreen layouts were rendered and visually inspected; that does not verify the real embedding UI.
 - The in-browser request pump and tab throttling need runtime browser verification; wasm compilation checks their API compatibility only.
 - No release wasm size measured because no release page was built.
 - The adjacent private craftrules checkout is absent on this host; repository AGENTS.md and the controller's binding rules supplied the applicable requirements.
