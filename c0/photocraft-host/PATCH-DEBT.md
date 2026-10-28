@@ -4,6 +4,7 @@ Only allowed to go down. Counts below compare against upstream `52f338e2df44ac73
 
 | File | Lines | What | Why | Offered upstream |
 |---|---|---|---|---|
+| `README.md` | 0 (6 replaced, 3 removed) | Fork/non-endorsement notice replaces the ArtCraft logo header; removes the footer logo | Required fork branding policy, inherited unchanged from c0/main; previously omitted from this ledger | Not applicable (fork-specific notice) |
 | `apps/photocraft-web/Cargo.toml` | 3 | `page-control` feature and optional `serde_json` | Turns on the page control bridge | Not yet (generic hook, task UV-PHOTO-photocraft-upstreamoffer) |
 | `apps/photocraft-web/src/main.rs` | 2 (+1 blank) | declares `mod page_control` behind the feature, and for the crate's own tests (the bridge's rules for which requests ask for a frame are plain Rust and tested natively) | Same | Not yet |
 | `apps/photocraft-web/src/web.rs` | 7 (1 replaced) | 4: `app = page_control::attach(app, ctx)` behind the feature. 3 (and 1 replaced): the web runner gets a name (`let runner = eframe::WebRunner::new();`, then `let result = runner` where the constructor stood) and is handed to the bridge behind the feature (`page_control::runner(&runner)`) | Gives the bridge the app's control channel, and the runner it needs to answer a request in a pass of its own instead of on the display's next frame (about one a second in a window that is not presented) | Not yet |
@@ -25,7 +26,18 @@ Only allowed to go down. Counts below compare against upstream `52f338e2df44ac73
 | `crates/engine/src/session/documents.rs` | 2 | `join_visible` after add, `settle_visible` after close and before upstream active-change notification | Maintains the filter and upstream cache notifications; moved with the document lifecycle code | Not yet |
 | `crates/engine/src/inspect.rs` | 2 | `"id": d.uid,` in `session.documents[]` and `"visible": s.visible(),` in `session` | The id and the filter are read by the host from `ui.inspect()` and `session.inspect` | Not yet |
 
-Total: **54 nonblank added lines in 20 upstream files, 14 replaced, 2 removed, 2 additional blank lines**. Before this pull, c0/main listed 63 added lines in 16 files (1 blank, 9 re-indented, 14 replaced, 4 removed). A consistent recount of c0/main against its merge base gives **54 added, 15 replaced, 2 removed, 2 blanks**: the old listed 63 was overstated. Added debt is flat; replacements fall by one. Debt does not grow. Upstream extraction spreads the same hooks over more files; the 3-line filtered-tiling delegation replaces inline policy.
+Source-hook subtotal: **54 nonblank added lines in 20 source files, 14 replaced, 2 removed,
+2 additional blank lines**. The inherited README branding policy adds zero lines, replaces six
+and removes three. Total debt in retained upstream files: **54 added lines in 21 files,
+20 replaced, 5 removed, 2 blanks**.
+
+Before this pull c0/main listed 63 added lines in 16 files (1 blank, 9 re-indented, 14 replaced,
+4 removed); that total was overstated and omitted README.md. A consistent source-hook recount is
+54 added, 15 replaced, 2 removed, 2 blanks. Including README.md, the baseline is **54 added in
+17 retained files, 21 replaced, 5 removed, 2 blanks**. Added debt stays flat and replacements fall
+by one. Upstream extraction spreads the hooks over more files; the 3-line filtered-tiling
+seam delegates its policy to c0_sessions.rs. Complete policy deletions (workflows/brand assets)
+are inventoried separately below and contain no retained source hooks.
 Was 60 added lines in 15 files before the marching ants' clock (2026-10-14): +1 `ui-egui/src/lib.rs`, +2 `tool_feedback.rs` (new to the list, and 2 replaced), 1 more replaced in `canvas.rs`.
 Was 42 added lines in 12 files before the sessions requests (2026-10-13): +8 `engine/src/lib.rs`, +2 `engine/src/inspect.rs`, +1 `menus.rs` (2 removed), +1 `ui-egui/src/lib.rs`, 5 more replaced in `canvas.rs`, 1 in `control.rs` (the last two add no line).
 Was 40 added lines in 10 files before the `c0.*` requests (2026-10-13, +1 in `control.rs`, +1 in `lib.rs`, both new to the list).
