@@ -27,7 +27,7 @@ Merge, never rebase; no push or GitHub login. Work performed only on this fleet 
 | `crates/ui-egui/src/theme.rs` | Re-applied runtime host palette resolution and feature gates around file polling only; retained upstream token definitions, parser and egui 0.37 theme IDs. |
 
 Every fork hunk in upstream-owned source was read in its final module against the upstream tree.
-The upstream lockfile was accepted unchanged; no manual lock editing. No host feature was dropped.
+The upstream lockfile was accepted unchanged; no manual lock editing. No host feature was dropped. The host filter now activates through upstream's set_active method, so its new active-document generation and mask-colour synchronization remain correct. A regression checks that filtering out the active document advances that generation.
 The old ants pixel-snap wrapper is subsumed by upstream's device-pixel renderer; the fixed-tick
 clock and tick-boundary repaint scheduling remain, with the regression adapted to compare the
 actual new renderer's mesh. No deleted upstream source file was resurrected.

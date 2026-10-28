@@ -87,7 +87,7 @@ impl Session {
         list.retain(|id| open.contains(id));
         let active_shown = self.active.is_some_and(|i| self.docs.get(i).is_some_and(|d| list.contains(&d.uid)));
         if !active_shown && let Some(first) = list.first().and_then(|id| self.docs.iter().position(|d| d.uid == *id)) {
-            self.active = Some(first);
+            self.set_active(first);
         }
     }
 
@@ -109,5 +109,26 @@ impl Session {
     pub fn arrange_order(&self, active: usize) -> Vec<usize> {
         let n = self.docs.len();
         (0..n).map(|k| (active + k) % n).filter(|&i| self.tab_visible(i)).collect()
+    }
+}
+
+#[cfg(test)]
+mod sync_tests {
+    use super::*;
+    use photocraft_color::{ColorMode, SampleType};
+    use photocraft_doc::Document;
+    use photocraft_geom::Size;
+
+    #[test]
+    fn filtering_the_active_document_updates_upstreams_active_generation() -> Result<(), String> {
+        let mut session = Session::new();
+        session.add_document(Document::new("first", Size::new(8, 8), ColorMode::Rgb, SampleType::U8), None);
+        session.add_document(Document::new("second", Size::new(8, 8), ColorMode::Rgb, SampleType::U8), None);
+        let first = session.documents().first().ok_or("no first document")?.uid;
+        let before = session.active_generation();
+        session.set_visible(Some(vec![first]))?;
+        assert_eq!(session.active_index(), Some(0));
+        assert_ne!(session.active_generation(), before);
+        Ok(())
     }
 }
