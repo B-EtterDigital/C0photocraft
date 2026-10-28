@@ -52,7 +52,8 @@ is **54 added in 21 files, 20 replaced, 5 removed, 2 blanks**, versus a consiste
 All Cargo commands run under `smoac-slot run gate 3 3600 --` with `CARGO_BUILD_JOBS=4` and
 `CARGO_TARGET_DIR=/srv/smoac/build/sow-fix-photocraft-target`. UI/engine tests use `RUST_TEST_THREADS=4`.
 Disk is checked before every build; the wrapper stops above 88%. Host-managed gate caps and reservations changed during this lane; this lane never adjusted them.
-Several admission waits exceeded 15 minutes; the last verification batch is still queued.
+Several admission waits exceeded 15 minutes. The final generative retests and second lint attempt
+were admitted after 3357 seconds. The rerun after its test-only lint repair is queued.
 
 | Command / context | Result | Load before (1/5/15 min) | Load after | Disk before -> after |
 |---|---|---|---|---|
@@ -68,6 +69,9 @@ Several admission waits exceeded 15 minutes; the last verification batch is stil
 | wasm default check | **pass** | 16.90 / 16.03 / 15.85 | 16.51 / 15.97 / 15.83 | 83% -> 83% |
 | wasm `--features page-control,heif` | **pass** | 16.51 / 15.97 / 15.83 | 16.31 / 15.93 / 15.82 | 83% -> 83% |
 | First strict native clippy | Three C0 diagnostics; repaired redundant casts and fixed-size RGBA iteration | 16.31 / 15.93 / 15.82 | 13.39 / 15.26 / 15.60 | 83% -> 83% |
+| Generative bridge after lint cleanup | **21 passed** | 8.94 / 12.58 / 14.58 | 10.89 / 12.82 / 14.63 | 81% -> 81% |
+| Minimum-coordinate regression after lint cleanup | **1 passed** | 10.89 / 12.82 / 14.63 | 11.25 / 12.72 / 14.54 | 81% -> 81% |
+| Strict native clippy, second attempt | C0 test constant assertion warning; converted to a compile-time assertion, check retained | 11.25 / 12.72 / 14.54 | 11.84 / 12.79 / 14.47 | 81% -> 81% |
 
 The complete UI command on both trees is `cargo test -p photocraft-ui-egui --no-fail-fast`.
 The comparison keys failures by test binary and full test name; every final fork failure also
@@ -90,7 +94,10 @@ The page bridge now constructs ControlRequest through its constructor, initializ
 dispatch state. Rectangle validation uses unsigned_abs so i64::MIN is rejected without panic; the
 new test reproduced the original overflow before the fix and passes for both axes afterward.
 The later lint-only cleanup removes redundant u32 casts and uses fixed-size four-channel chunks
-with the same per-pixel conversion; it changes only the C0 generative module.
+with the same per-pixel conversion; it changes only the C0 generative module. The targeted
+21 generative tests and one overflow regression pass after that cleanup. The web test's request
+capacity assertion is now evaluated in a const block to satisfy assertions_on_constants; the
+capacity requirement and request-limit test assertions are retained.
 
 Final native/wasm clippy, repeat wasm checks after lint-only cleanup, targeted generative retests,
 layer check and offscreen palette captures are still queued. The edited host modules/harness pass rustfmt --check;
