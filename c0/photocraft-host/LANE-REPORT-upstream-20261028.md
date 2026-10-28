@@ -35,10 +35,12 @@ actual new renderer's mesh. No deleted upstream source file was resurrected.
 ## Patch debt
 
 Before: ledger lists 63 added lines in 16 files, plus 1 blank, 9 re-indented, 14 replaced and 4 removed.
-After resolution: 54 nonblank added lines in 20 files, 14 replaced, 2 removed, 2 additional blanks;
+That ledger total was overstated: recounting c0/main against merge base with the same nonblank,
+indentation-normalized comparison gives **54 added, 15 replaced, 2 removed, 2 blanks**.
+After resolution: **54 nonblank added lines in 20 files, 14 replaced, 2 removed, 2 additional blanks**;
 indentation-only changes excluded. See PATCH-DEBT.md for each seam and moved-path accounting.
 The 3-line delegation for filtered tiling moves its policy into c0_sessions.rs and preserves upstream's
-stable tile positions. Debt remains below the listed baseline. All conflicted paths, including zero-debt
+stable tile positions. Added debt is flat under a consistent counter, replacements fall by one, and the total remains below the old listed ceiling of 63. All conflicted paths, including zero-debt
 moved files and CI policy removals, are now accounted for in that ledger.
 
 ## Verification
