@@ -4,7 +4,7 @@
 # Same recipe that took C0pdf from 46.4 MB to 30.4 MB on 2026-10-28; panic strategy stays upstream's.
 set -euo pipefail
 cd "$(dirname "$0")"
-export CARGO_PROFILE_RELEASE_OPT_LEVEL=z
+export CARGO_PROFILE_RELEASE_OPT_LEVEL=s  # s, not z: pixel work runs in wasm here, keep it fast
 export CARGO_PROFILE_RELEASE_LTO=fat
 export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
 export CARGO_PROFILE_RELEASE_STRIP=debuginfo
