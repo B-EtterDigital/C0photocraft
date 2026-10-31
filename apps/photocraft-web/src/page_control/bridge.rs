@@ -201,7 +201,7 @@ fn settle(ctx: &egui::Context, reply: &mut Value, palette: Palette) {
 fn submit(tx: &Sender<ControlRequest>, method: String, params: Value) -> Result<Receiver<Value>, String> {
     let (reply, rx) = channel();
     // No deadline: `std::time::Instant` does not exist in the browser; the page enforces its own.
-    tx.send(ControlRequest { method, params, reply, deadline: None }).map_err(|_| "PhotoCraft has stopped".to_owned())?;
+    tx.send(ControlRequest { method, params, reply, deadline: None, dispatch: Default::default() }).map_err(|_| "PhotoCraft has stopped".to_owned())?;
     Ok(rx)
 }
 
