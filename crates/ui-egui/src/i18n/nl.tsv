@@ -2170,6 +2170,7 @@
 	Opened {name}	{name} geopend
 	Opening {name}	{name} openen
 	Saved {name}	{name} opgeslagen
+	Saved {name} as a flat image. Your layers stay in the document.	{name} opgeslagen als platte afbeelding. Je lagen blijven in het document.
 	Saving {name}	{name} opslaan
 	Saving {percent}	Opslaan {percent}
 	A save to {name} is still running; try again when it finishes	Er wordt nog opgeslagen naar {name}; probeer het opnieuw zodra dat klaar is

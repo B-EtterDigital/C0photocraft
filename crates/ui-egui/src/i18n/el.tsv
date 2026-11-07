@@ -1619,6 +1619,7 @@
 	Opened {name}	Άνοιξε το {name}
 	Opening {name}	Άνοιγμα του {name}
 	Saved {name}	Αποθηκεύτηκε το {name}
+	Saved {name} as a flat image. Your layers stay in the document.	Το {name} αποθηκεύτηκε ως ενιαία εικόνα. Τα επίπεδα μένουν στο έγγραφο.
 	Saving {name}	Αποθήκευση του {name}
 	Saving {percent}	Αποθήκευση {percent}
 	A save to {name} is still running; try again when it finishes	Η αποθήκευση στο {name} βρίσκεται ακόμη σε εξέλιξη· δοκιμάστε ξανά όταν ολοκληρωθεί

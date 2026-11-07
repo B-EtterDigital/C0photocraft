@@ -2144,6 +2144,7 @@
 	Opened {name}	{name} tarihinde açıldı
 	Opening {name}	{name} açılıyor
 	Saved {name}	{name} kaydedildi
+	Saved {name} as a flat image. Your layers stay in the document.	{name} düz bir görüntü olarak kaydedildi. Katmanlarınız belgede kalıyor.
 	Saving {name}	{name} kaydediliyor
 	A save to {name} is still running; try again when it finishes	{name} konumuna kaydetme işlemi hâlâ devam ediyor; bittiğinde tekrar dene
 	{label} is writing the file and can no longer be cancelled	{label} dosyayı yazıyor ve artık iptal edilemez

@@ -3510,6 +3510,7 @@ cameraRaw	Yellow	Sárga
 	Save your work and restart PhotoCraft to retry GPU acceleration. CPU rendering remains active for this session.	A GPU-gyorsítás újrapróbálásához mentsd a munkádat, majd indítsd újra a PhotoCraftot. Ebben a munkamenetben a CPU-s megjelenítés marad aktív.
 	Saved a copy as {path}	Másolat mentve: {path}
 	Saved {name}	Mentve: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} egyesített képként mentve. A rétegek a dokumentumban maradnak.
 	Saved {path}; image assets: {n} in {dir}	Mentve: {path}; képelemek: {n} ({dir})
 	Scale Factor	Méretezési tényező
 	Scale Units	Méretarány mértékegysége

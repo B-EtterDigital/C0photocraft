@@ -2222,6 +2222,7 @@
 	Opened {name}	Otevřeno: {name}
 	Opening {name}	Otevírání {name}
 	Saved {name}	Uloženo: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} uložen jako sloučený obrázek. Vrstvy zůstávají v dokumentu.
 	Saving {name}	Ukládání {name}
 	Saving {percent}	Ukládání {percent}
 	A save to {name} is still running; try again when it finishes	Ukládání do {name} stále probíhá; zkuste to znovu, až skončí

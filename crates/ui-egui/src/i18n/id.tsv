@@ -2161,6 +2161,7 @@
 	Opened {name}	Dibuka: {name}
 	Opening {name}	Membuka {name}
 	Saved {name}	Tersimpan: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} disimpan sebagai gambar datar. Layer Anda tetap ada di dokumen.
 	Saving {name}	Menyimpan {name}
 	Saving {percent}	Menyimpan {percent}
 	A save to {name} is still running; try again when it finishes	Penyimpanan ke {name} masih berjalan; coba lagi setelah selesai

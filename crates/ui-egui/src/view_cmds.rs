@@ -1453,8 +1453,9 @@ pub(crate) fn write_copy(
     let template = "Saved a copy as {path}";
     app.ui.status = crate::i18n::fmt(tl!(template), &[("path", path)]);
     app.ui.status_error = false;
-    let what = crate::i18n::fmt(tl!(template), &[("path", &crate::file_open::display_name(path))]);
-    crate::notices::io_warnings(app, &what, &warnings);
+    let name = crate::file_open::display_name(path);
+    let what = crate::i18n::fmt(tl!(template), &[("path", &name)]);
+    crate::notices::write_warnings(app, &what, &name, &warnings);
     Ok(json!({"path": path, "warnings": warnings}))
 }
 

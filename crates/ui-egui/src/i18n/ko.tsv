@@ -2163,6 +2163,7 @@
 	Opened {name}	{name} 열림
 	Opening {name}	{name} 여는 중
 	Saved {name}	{name} 저장됨
+	Saved {name} as a flat image. Your layers stay in the document.	{name}을(를) 병합 이미지로 저장했습니다. 레이어는 문서에 그대로 있습니다.
 	Saving {name}	{name} 저장 중
 	Saving {percent}	저장 중 {percent}
 	A save to {name} is still running; try again when it finishes	{name}에 저장하는 작업이 아직 진행 중입니다. 완료된 후 다시 시도하세요

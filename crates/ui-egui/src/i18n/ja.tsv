@@ -2202,6 +2202,7 @@
 	Opened {name}	{name} を開きました
 	Opening {name}	{name} を開いています
 	Saved {name}	{name} を保存しました
+	Saved {name} as a flat image. Your layers stay in the document.	{name} を統合画像として保存しました。レイヤーはドキュメントに残ります。
 	Saving {name}	{name} を保存しています
 	Saving {percent}	保存中 {percent}
 	A save to {name} is still running; try again when it finishes	{name} への保存がまだ実行中です。完了してからもう一度お試しください

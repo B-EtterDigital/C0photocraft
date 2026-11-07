@@ -2484,6 +2484,7 @@
 	Opened {name}	Открыто: {name}
 	Opening {name}	Открытие {name}
 	Saved {name}	Сохранено: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} сохранён как сведённое изображение. Слои остаются в документе.
 	Saving {name}	Сохранение {name}
 	Saving {percent}	Сохранение {percent}
 	A save to {name} is still running; try again when it finishes	Сохранение в {name} ещё выполняется; повторите попытку после его завершения

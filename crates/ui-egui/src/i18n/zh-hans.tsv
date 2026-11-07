@@ -2269,6 +2269,7 @@ cameraRaw	Blending	混合
 	Opened {name}	已打开 {name}
 	Opening {name}	正在打开 {name}
 	Saved {name}	已保存 {name}
+	Saved {name} as a flat image. Your layers stay in the document.	已将 {name} 保存为合并图像。图层仍保留在文档中。
 	Saving {name}	正在保存 {name}
 	Saving {percent}	正在保存 {percent}
 	A save to {name} is still running; try again when it finishes	仍在保存到 {name}；请在完成后重试

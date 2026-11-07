@@ -2192,6 +2192,7 @@
 	Opened {name}	Geöffnet: {name}
 	Opening {name}	Öffne {name}
 	Saved {name}	Gespeichert: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} als flaches Bild gespeichert. Die Ebenen bleiben im Dokument.
 	Saving {name}	Speichere {name}
 	Saving {percent}	Speichern {percent}
 	A save to {name} is still running; try again when it finishes	{name} wird noch gespeichert; versuchen Sie es erneut, wenn der Vorgang abgeschlossen ist

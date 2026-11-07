@@ -2204,6 +2204,7 @@
 	Opened {name}	Aperto: {name}
 	Opening {name}	Apertura {name}
 	Saved {name}	Salvato: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} salvato come immagine unica. I livelli restano nel documento.
 	Saving {name}	Salvataggio {name}
 	Saving {percent}	Salvataggio {percent}
 	A save to {name} is still running; try again when it finishes	Un salvataggio in {name} è ancora in corso; riprova quando termina

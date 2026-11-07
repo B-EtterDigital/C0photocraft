@@ -1550,8 +1550,9 @@ impl PhotocraftApp {
             }
         }
         self.ui.status_error = false;
-        let what = crate::i18n::fmt(tl!("Saved {name}"), &[("name", file_open::display_name(path).as_str())]);
-        notices::io_warnings(self, &what, warnings);
+        let name = file_open::display_name(path);
+        let what = crate::i18n::fmt(tl!("Saved {name}"), &[("name", name.as_str())]);
+        notices::write_warnings(self, &what, &name, warnings);
         self.sync_views();
     }
 

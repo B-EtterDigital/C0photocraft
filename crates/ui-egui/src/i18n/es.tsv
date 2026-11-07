@@ -2208,6 +2208,7 @@
 	Opened {name}	Se abrió {name}
 	Opening {name}	Abriendo {name}
 	Saved {name}	Guardado: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} se guardó como imagen plana. Tus capas siguen en el documento.
 	Saving {name}	Guardando {name}
 	Saving {percent}	Guardando {percent}
 	A save to {name} is still running; try again when it finishes	Todavía se está guardando {name}; inténtelo de nuevo cuando termine

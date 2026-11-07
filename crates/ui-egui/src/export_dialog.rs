@@ -141,7 +141,8 @@ pub fn quick_export_selected_layers_png(app: &mut PhotocraftApp) -> Result<Value
             let (bytes, warnings) = export(doc, &path, &ExportSettings { xmp_all: false, ..Default::default() })?;
             let write = app.services.write.as_mut().ok_or("no writer configured")?;
             write(&path, &bytes)?;
-            crate::notices::io_warnings(app, &format!("Exported {}", crate::file_open::display_name(&path)), &warnings);
+            let name = crate::file_open::display_name(&path);
+            crate::notices::write_warnings(app, &format!("Exported {name}"), &name, &warnings);
             exported.push(json!({"path": path, "bytes": bytes.len(), "warnings": warnings}));
         }
         app.ui.status = format!("Exported {} PNG files", exported.len());
@@ -566,8 +567,9 @@ pub fn confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value,
         app.ui.status = crate::i18n::fmt(tl!(template), &[("path", &path), ("size", &crate::sizing::human_bytes(bytes.len() as f64))]);
         app.ui.status_error = false;
         let template = "Exported {path}";
-        let what = crate::i18n::fmt(tl!(template), &[("path", &crate::file_open::display_name(&path))]);
-        crate::notices::io_warnings(app, &what, &warnings);
+        let name = crate::file_open::display_name(&path);
+        let what = crate::i18n::fmt(tl!(template), &[("path", &name)]);
+        crate::notices::write_warnings(app, &what, &name, &warnings);
         Ok(json!({"path": path, "bytes": bytes.len(), "warnings": warnings}))
     })
 }
@@ -594,8 +596,9 @@ fn confirm_layers(app: &mut PhotocraftApp, f: &Map<String, Value>, ids: &[photoc
             let write = app.services.write.as_mut().ok_or("no writer configured")?;
             write(&path, &bytes)?;
             let template = "Exported {path}";
-            let what = crate::i18n::fmt(tl!(template), &[("path", &crate::file_open::display_name(&path))]);
-            crate::notices::io_warnings(app, &what, &warnings);
+            let name = crate::file_open::display_name(&path);
+            let what = crate::i18n::fmt(tl!(template), &[("path", &name)]);
+            crate::notices::write_warnings(app, &what, &name, &warnings);
             exported.push(json!({"path": path, "bytes": bytes.len(), "warnings": warnings}));
         }
         let template = "Exported {n} files";

@@ -2208,6 +2208,7 @@
 	Opened {name}	已開啟 {name}
 	Opening {name}	正在開啟 {name}
 	Saved {name}	已儲存 {name}
+	Saved {name} as a flat image. Your layers stay in the document.	已將 {name} 儲存為合併影像。圖層仍保留在文件中。
 	Saving {name}	正在儲存 {name}
 	Saving {percent}	正在儲存 {percent}
 	A save to {name} is still running; try again when it finishes	仍在儲存到 {name}；請在完成後再試一次

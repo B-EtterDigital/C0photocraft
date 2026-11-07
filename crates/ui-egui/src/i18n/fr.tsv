@@ -2168,6 +2168,7 @@
 	Opened {name}	Ouvert : {name}
 	Opening {name}	Ouverture de {name}
 	Saved {name}	Enregistré : {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} enregistré en image aplatie. Vos calques restent dans le document.
 	Saving {name}	Enregistrement de {name}
 	Saving {percent}	Enregistrement {percent}
 	A save to {name} is still running; try again when it finishes	Un enregistrement de {name} est encore en cours ; réessayez lorsqu’il sera terminé

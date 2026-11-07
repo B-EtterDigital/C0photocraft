@@ -2164,6 +2164,7 @@
 	Opened {name}	Aberto: {name}
 	Opening {name}	Abrindo {name}
 	Saved {name}	Salvo: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} foi salvo como imagem achatada. Suas camadas continuam no documento.
 	Saving {name}	Salvando {name}
 	Saving {percent}	Salvando {percent}
 	A save to {name} is still running; try again when it finishes	Um salvamento em {name} ainda está em andamento; tente novamente quando terminar

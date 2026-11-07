@@ -2147,6 +2147,7 @@
 	Opened {name}	Otvoreno: {name}
 	Opening {name}	Otvaranje: {name}
 	Saved {name}	Sačuvano: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} je sačuvan kao spojena slika. Slojevi ostaju u dokumentu.
 	Saving {name}	Čuvanje: {name}
 	Saving {percent}	Čuvanje {percent}
 	A save to {name} is still running; try again when it finishes	Čuvanje u {name} je još u toku; pokušajte ponovo kada se završi

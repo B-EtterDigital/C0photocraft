@@ -2457,6 +2457,7 @@
 	Opened {name}	Відкрито: {name}
 	Opening {name}	Відкриття {name}
 	Saved {name}	Збережено: {name}
+	Saved {name} as a flat image. Your layers stay in the document.	{name} збережено як зведене зображення. Шари залишаються в документі.
 	Saving {name}	Збереження {name}
 	Saving {percent}	Збереження {percent}
 	A save to {name} is still running; try again when it finishes	Збереження в {name} ще триває; спробуйте ще раз, коли воно завершиться

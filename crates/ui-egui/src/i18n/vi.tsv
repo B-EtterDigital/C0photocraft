@@ -2482,6 +2482,7 @@ shape	Appearance	Diện mạo
 	Right:	Phải:
 	Rows	Hàng
 	Saved {name}	Đã lưu {name}
+	Saved {name} as a flat image. Your layers stay in the document.	Đã lưu {name} thành ảnh phẳng. Các lớp vẫn còn trong tài liệu.
 	Saving {percent}	Đang lưu {percent}
 	Scale or rotate the moved area, then press {key}	Co giãn hoặc xoay vùng đã di chuyển, rồi nhấn {key}
 	Scale:	Tỷ lệ:
