@@ -191,7 +191,13 @@ fn status_message(app: &PhotocraftApp, ui: &mut egui::Ui, t: &Tokens) {
     let (r, _) = ui.allocate_exact_size(vec2(17.0, 16.0), Sense::hover());
     ui.painter().line_segment([r.center_top(), r.center_bottom()], Stroke::new(1.0, t.separator));
     let is_err = app.ui.status_error || app.ui.status.starts_with("Couldn");
-    ui.label(RichText::new(&app.ui.status).color(if is_err { t.warning } else { t.text_faint }));
+    ui.label(RichText::new(&app.ui.status).color(status_color(t, is_err)));
+}
+
+/// A status line is read, so an info line uses body text (WCAG AA in every theme); faint text
+/// measured 2.7:1 on the light theme. Errors keep the warning colour.
+pub fn status_color(t: &Tokens, is_err: bool) -> egui::Color32 {
+    if is_err { t.warning } else { t.text }
 }
 
 /// Home button at the very start of Photoshop 2026's options bar: toggles the Home (start)
@@ -256,6 +262,16 @@ mod tests {
         let mut s = photocraft_engine::Session::new();
         s.execute("file.new", json!({"width": 2400, "height": 1500, "resolution": 72, "background": "white"})).unwrap();
         (*s.active().unwrap().doc).clone()
+    }
+
+    #[test]
+    fn an_info_status_line_is_body_text_and_an_error_keeps_the_warning_colour() {
+        // Faint text measured 2.7:1 (light) and 3.7:1 (dark) under the host theme on 2026-11-08.
+        for kind in crate::theme::ThemeKind::ALL {
+            let t = Tokens::for_kind(kind);
+            assert_eq!(status_color(&t, false), t.text, "{kind:?}");
+            assert_eq!(status_color(&t, true), t.warning, "{kind:?}");
+        }
     }
 
     #[test]

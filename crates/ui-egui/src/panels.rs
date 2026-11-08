@@ -1643,7 +1643,7 @@ pub fn status_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                 if !app.ui.status.is_empty() {
                     widgets::vline(ui, 16.0);
                     let is_err = app.ui.status_error || app.ui.status.starts_with("Couldn");
-                    ui.label(RichText::new(&app.ui.status).color(if is_err { t.warning } else { t.text_faint }));
+                    ui.label(RichText::new(&app.ui.status).color(crate::chrome_ui::status_color(&t, is_err)));
                 }
                 ui.with_layout(crate::direction::trailing(), |ui| {
                     if app.session.active().is_some()
