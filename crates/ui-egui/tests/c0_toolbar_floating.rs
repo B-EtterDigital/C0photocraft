@@ -331,9 +331,11 @@ fn floating_honours_toolbar_double() {
         assert_eq!(columns(&two).len(), 2, "{kind:?}: two tools wide: {two:?}");
         assert!(span(&two) < span(&one) * 0.75, "{kind:?}: shorter: {} vs {}", span(&two), span(&one));
         assert_eq!(two.len(), one.len(), "{kind:?}: every tool of the one-column palette is present");
-        // Pro's last two buttons (Quick Mask, Screen Mode) are footer: docked they sit at the panel's
-        // bottom, floating right under the swatches; the tools above them are laid out alike.
-        let tools = |b: &[Rect]| relative(&b[..b.len() - if kind == ThemeKind::Pro { 2 } else { 0 }]);
+        // The footer (Pro's Quick Mask and Screen Mode buttons, Studio's two colour chips) is the last two
+        // rects. Docked, the footer sits at the panel's bottom once the tool column scrolls; floating, the
+        // palette is as tall as its content, so the footer sits right under the tools. The tools above it
+        // are laid out alike.
+        let tools = |b: &[Rect]| relative(&b[..b.len().saturating_sub(2)]);
         assert_eq!(tools(&two), tools(&tool_buttons(&docked_double, side)), "{kind:?}: the docked two-column layout, dividers included");
         assert!(palette_area(&double).width() > palette_area(&single).width(), "{kind:?}: the frame is wider");
         assert!(palette_area(&double).height() < palette_area(&single).height(), "{kind:?}: and shorter");

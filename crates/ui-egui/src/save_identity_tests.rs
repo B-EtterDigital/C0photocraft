@@ -112,7 +112,8 @@ fn save_copy_and_export_keep_the_editable_document_identity() {
     crate::export_dialog::confirm(&mut app, json!({"format": "png", "scale": 100}).as_object().unwrap()).unwrap();
     app.poll_file_dialog(&ctx, None);
     assert_eq!(identity(&app), before);
-    assert!(app.ui.status.starts_with("Exported export.png"), "{}", app.ui.status);
+    // A layered document exported to PNG is flattened: the status says so as an info line (c0 `d67b26781`).
+    assert!(app.ui.status.starts_with("Saved export.png as a flat image"), "{}", app.ui.status);
 }
 
 #[test]
