@@ -22,7 +22,14 @@ pub struct ChromeState {
 impl ChromeState {
     /// Is the Home screen up, given the current number of open documents? With no documents it
     /// shows by itself when `auto_show` (Preferences › General › Auto show the Home Screen).
-    pub fn shows_home(&self, documents: usize, auto_show: bool) -> bool {
+    ///
+    /// `home` stores the document count when Home was opened so File › New / Open can leave it.
+    /// Closing a tab that returns to that count must not bring Home back (#3981): once the
+    /// document set has changed, the overlay is gone until the user opens Home again.
+    pub fn shows_home(&mut self, documents: usize, auto_show: bool) -> bool {
+        if self.home.is_some_and(|n| n != documents) {
+            self.home = None;
+        }
         (documents == 0 && auto_show) || self.home == Some(documents)
     }
 }
@@ -149,7 +156,7 @@ pub fn status_bar_pro(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     );
     let mut pct = app.ui.views[i].zoom * 100.0;
     let control_h = crate::panels::status_bar_heights(&t).1;
-    if widgets::compact_value_field(ui, &mut pct, crate::zoom_levels::percent_range(&app.ui.views[i]), "%", 64.0, control_h).changed() {
+    if widgets::compact_wrapping_value_field(ui, &mut pct, crate::zoom_levels::percent_range(&app.ui.views[i]), "%", vec2(64.0, control_h)).changed() {
         app.ui.views[i].zoom = crate::zoom_levels::clamp(pct / 100.0, app.ui.views[i].doc_size);
         app.ui.views[i].fit_pending = false;
     }
@@ -159,7 +166,8 @@ pub fn status_bar_pro(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     if resp.hovered() {
         ui.painter().rect_filled(r, t.radius_sm, t.hover);
     }
-    icons::paint(ui, r, "chevron-right", 11.0, t.text_dim);
+    // Points along the bar, away from the zoom field.
+    icons::paint(ui, r, if crate::direction::is_rtl() { "chevron-left" } else { "chevron-right" }, 11.0, t.text_dim);
     let resp = resp.on_hover_text(tl!("Show"));
     egui::Popup::menu(&resp).show(|ui| {
         crate::widgets::style_spectrum_popup_menu(ui);
@@ -183,7 +191,13 @@ fn status_message(app: &PhotocraftApp, ui: &mut egui::Ui, t: &Tokens) {
     let (r, _) = ui.allocate_exact_size(vec2(17.0, 16.0), Sense::hover());
     ui.painter().line_segment([r.center_top(), r.center_bottom()], Stroke::new(1.0, t.separator));
     let is_err = app.ui.status_error || app.ui.status.starts_with("Couldn");
-    ui.label(RichText::new(&app.ui.status).color(if is_err { t.warning } else { t.text_faint }));
+    ui.label(RichText::new(&app.ui.status).color(status_color(t, is_err)));
+}
+
+/// A status line is read, so an info line uses body text (WCAG AA in every theme); faint text
+/// measured 2.7:1 on the light theme. Errors keep the warning colour.
+pub fn status_color(t: &Tokens, is_err: bool) -> egui::Color32 {
+    if is_err { t.warning } else { t.text }
 }
 
 /// Home button at the very start of Photoshop 2026's options bar: toggles the Home (start)
@@ -248,6 +262,16 @@ mod tests {
         let mut s = photocraft_engine::Session::new();
         s.execute("file.new", json!({"width": 2400, "height": 1500, "resolution": 72, "background": "white"})).unwrap();
         (*s.active().unwrap().doc).clone()
+    }
+
+    #[test]
+    fn an_info_status_line_is_body_text_and_an_error_keeps_the_warning_colour() {
+        // Faint text measured 2.7:1 (light) and 3.7:1 (dark) under the host theme on 2026-11-08.
+        for kind in crate::theme::ThemeKind::ALL {
+            let t = Tokens::for_kind(kind);
+            assert_eq!(status_color(&t, false), t.text, "{kind:?}");
+            assert_eq!(status_color(&t, true), t.warning, "{kind:?}");
+        }
     }
 
     #[test]
@@ -331,7 +355,7 @@ mod tests {
         let mut gray = doc();
         gray.mode = photocraft_doc::ColorMode::Grayscale;
         gray.icc_profile = Some(photocraft_engine::color_cmds::working_profile(gray.mode).to_bytes());
-        assert_eq!(profile_name(&gray), "sGray (sRGB tone curve, Photocraft)");
+        assert_eq!(profile_name(&gray), "Dot Gain 20%-compatible (gamma 1.732, Photocraft)");
 
         let mut custom = (*photocraft_engine::color_cmds::working_profile(photocraft_doc::ColorMode::Cmyk)).clone();
         custom.description = "PhotoCraft Studio CMYK".into();
@@ -376,6 +400,30 @@ mod tests {
         c.home = Some(2);
         assert!(c.shows_home(2, true));
         assert!(!c.shows_home(3, true));
+        assert!(c.home.is_none(), "leaving Home by opening a document dismisses it");
+        c.home = Some(1);
+        assert!(!c.shows_home(2, true));
+        assert!(!c.shows_home(1, true), "closing back to the stored count must not re-open Home");
+        assert!(c.home.is_none());
+    }
+
+    #[test]
+    fn closing_a_tab_does_not_return_to_home() {
+        use crate::PhotocraftApp;
+        use photocraft_engine::Session;
+        use serde_json::json;
+
+        let mut app = PhotocraftApp::new(Session::new(), crate::Services::default());
+        app.run("file.new", json!({"width": 8, "height": 8, "name": "Keep"})).unwrap();
+        let n = app.session.documents().len();
+        app.ui.chrome.home = Some(n);
+        assert!(app.ui.chrome.shows_home(n, true));
+        app.run("file.new", json!({"width": 8, "height": 8, "name": "Other"})).unwrap();
+        assert!(!app.ui.chrome.shows_home(app.session.documents().len(), true));
+        app.run("file.close", json!({"document": 1, "discard": true})).unwrap();
+        assert_eq!(app.session.documents().len(), 1);
+        assert!(!app.ui.chrome.shows_home(1, true), "Home must stay dismissed after closing the extra tab");
+        assert_eq!(app.session.documents()[0].doc.name, "Keep");
     }
 
     #[test]
