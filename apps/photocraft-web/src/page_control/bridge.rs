@@ -120,6 +120,8 @@ impl Pump {
 
 /// Wires the page function to `app`'s control channel.
 pub fn attach(app: PhotocraftApp, ctx: &egui::Context) -> PhotocraftApp {
+    // One mouse-wheel notch of the browser is one zoom step (see `tune_wheel`).
+    ctx.options_mut(|o| super::tune_wheel(&mut o.input_options));
     let (tx, rx) = channel::<ControlRequest>();
     install(tx, ctx.clone());
     app.with_control(rx)

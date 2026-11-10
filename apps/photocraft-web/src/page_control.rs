@@ -113,6 +113,20 @@ pub fn inline_passes(method: &str, params: &Value) -> usize {
     (steps.saturating_add(1) as usize).min(MAX_INLINE_PASSES)
 }
 
+/// What one mouse-wheel notch reports in a Chromium page (C0VIBE's Electron window, Chrome, Edge):
+/// `WheelEvent.deltaY` of 100, in pixels (`deltaMode` 0), which eframe passes on as 100 points.
+pub const BROWSER_NOTCH_POINTS: f32 = 100.0;
+
+/// Makes one wheel notch one notch. PhotoCraft's wheel zoom (`wheel_nav`) counts a notch as
+/// egui's `line_scroll_speed` points, and egui sets that to 8 on the web (40 natively). A browser
+/// notch of 100 points was read as 12.5 notches: ⌥ + wheel zoomed 1.1^12.5 = 3.3× per notch, and
+/// ⇧ + ⌥ + wheel jumped up to 10 levels of the zoom ladder. The sliders' wheel step reads the
+/// same figure. Point deltas (every wheel in Chromium, every trackpad) still scroll point for
+/// point; only `deltaMode` line events, which Chromium does not send, would scroll further.
+pub fn tune_wheel(options: &mut egui::InputOptions) {
+    options.line_scroll_speed = BROWSER_NOTCH_POINTS;
+}
+
 /// Whether a request that is still waiting gets another pass now: the app asked for a repaint and
 /// the last pass was at least [`PUMP_MS`] ago.
 pub fn pump_due(wants_repaint: bool, now_ms: f64, last_pass_ms: f64) -> bool {
@@ -221,6 +235,53 @@ mod tests {
 
     /// The bridge leans on these in the web runner; a pull that renames them must fail here, not
     /// in the browser.
+    #[test]
+    fn one_browser_wheel_notch_is_one_zoom_step() {
+        use photocraft_ui_egui::wheel_nav::{Input, Wheel, classify};
+        let mut options = egui::InputOptions::default();
+        tune_wheel(&mut options);
+        let notch = options.line_scroll_speed;
+        let alt = |dy: f32, shift: bool, animated_zoom: bool| Input {
+            scroll: egui::vec2(0.0, dy),
+            raw: egui::vec2(0.0, dy),
+            zoom_delta: 1.0,
+            alt: true,
+            shift,
+            zoom_with_wheel: false,
+            pinch_zooms: true,
+            animated_zoom,
+            notch,
+        };
+        // ⌥ + one notch: ×1.1 in, ÷1.1 out, eased or instant.
+        for animated in [true, false] {
+            let Some(Wheel::Zoom(f)) = classify(alt(100.0, false, animated)) else { panic!("no zoom") };
+            assert!((f - 1.1).abs() < 1e-4, "one notch zoomed by {f}");
+            let Some(Wheel::Zoom(f)) = classify(alt(-100.0, false, animated)) else { panic!("no zoom") };
+            assert!((f - 1.0 / 1.1).abs() < 1e-4, "one notch back zoomed by {f}");
+        }
+        // ⇧ + ⌥ + one notch: one rung of the ladder.
+        assert_eq!(classify(alt(100.0, true, true)), Some(Wheel::SnapZoom(1)));
+        assert_eq!(classify(alt(-100.0, true, true)), Some(Wheel::SnapZoom(-1)));
+        // What egui's own web default made of the same notch.
+        let web = Input { notch: 8.0, ..alt(100.0, false, false) };
+        let Some(Wheel::Zoom(f)) = classify(web) else { panic!("no zoom") };
+        assert!(f > 3.0, "the old notch zoomed by {f}");
+    }
+
+    #[test]
+    fn the_bridge_tunes_the_wheel_when_it_attaches() {
+        let bridge = include_str!("page_control/bridge.rs");
+        assert!(bridge.contains("super::tune_wheel(&mut o.input_options)"), "attach no longer tunes the wheel notch");
+    }
+
+    #[test]
+    fn the_page_hands_ctrl_alt_wheel_on_as_alt_wheel() {
+        let page = include_str!("../../../c0/photocraft-host/index.html");
+        for needle in ["window.addEventListener('wheel'", "!event.ctrlKey || !event.altKey || event.shiftKey", "altKey: true, ctrlKey: false", "capture: true, passive: false"] {
+            assert!(page.contains(needle), "the page lost its Ctrl + Alt + wheel hand-off: {needle}");
+        }
+    }
+
     #[test]
     fn the_web_shell_hands_its_runner_to_the_bridge() {
         let web = include_str!("web.rs");
