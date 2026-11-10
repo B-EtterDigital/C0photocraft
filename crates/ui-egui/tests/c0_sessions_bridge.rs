@@ -408,7 +408,10 @@ fn document_bytes_round_trip_without_touching_the_source() {
 
     // Unknown ids and formats are named errors.
     assert_eq!(error(&mut app, &ctx, "c0.documentBytes", json!({"id": 777_777})), "no document with id 777777");
-    assert_eq!(error(&mut app, &ctx, "c0.documentBytes", json!({"id": id, "format": "psd"})), "`format` must be \"pcraft\"");
+    assert_eq!(
+        error(&mut app, &ctx, "c0.documentBytes", json!({"id": id, "format": "bmp"})),
+        "`format` must be one of \"pcraft\", \"psd\", \"png\", \"jpg\", \"jpeg\""
+    );
     let none = call(&mut new_app(), &ctx, "c0.documentBytes", json!({}));
     assert_eq!(none["error"], "no document open");
 }
