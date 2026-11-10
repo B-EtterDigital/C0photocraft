@@ -14,7 +14,7 @@ pub fn dock_area(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     if app.ui.panels.rail && !t.pro {
         rail(app, ui, &t);
     }
-    egui::CentralPanel::default().frame(egui::Frame::NONE).show(ui, |ui| crate::panel_docking::show(app, ui));
+    egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.dock)).show(ui, |ui| crate::panel_docking::show(app, ui));
     crate::dock::persist(app, ui.ctx());
     crate::color_panel_ui::persist(app);
 }
