@@ -11,7 +11,7 @@
 //! | `c0.activate` | `{id}` | `{id, document}` |
 //! | `c0.close` | `{id, discard?}` | `{id, closed, prompt}` |
 //! | `c0.tabs` | `{visible: [id] \| null}` (no `visible`: only reports) | `{visible, active}` |
-//! | `c0.documentBytes` | `{id?, format?: "pcraft"}` | `{name, format, bytes, revision}` |
+//! | `c0.documentBytes` | `{id?, format?: "pcraft" \| "psd" \| "png" \| "jpg" \| "jpeg", quality?: 1..=100}` | `{name, format, bytes, revision, warnings}` |
 //!
 //! `bytes` is base64 (standard alphabet, no `data:` prefix). `c0.capture`, `c0.selectionMask` and
 //! `c0.place` take the same optional `id` to act on a document other than the active one.
@@ -135,23 +135,37 @@ fn tabs(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
     Ok(json!({"visible": app.session.visible(), "active": active_id(app)}))
 }
 
+/// The formats `c0.documentBytes` writes: our own `.pcraft` (lossless, the default) and the ones the host saves a copy
+/// in for a project (founder 2026-11-10: "save to the selected project as PSD, and save as JPG or PNG"). PSD keeps the
+/// layers; PNG and JPG are the flattened picture, and the reply's `warnings` say what was approximated or dropped.
+pub const DOCUMENT_BYTE_FORMATS: [&str; 5] = [photocraft_format::EXTENSION, "psd", "png", "jpg", "jpeg"];
+
 fn document_bytes(app: &PhotocraftApp, p: &Value) -> Result<Value, String> {
-    match p.get("format") {
+    let format = match p.get("format") {
+        None | Some(Value::Null) => photocraft_format::EXTENSION,
+        Some(Value::String(f)) if DOCUMENT_BYTE_FORMATS.contains(&f.as_str()) => f.as_str(),
+        Some(_) => return Err(format!("`format` must be one of {}", DOCUMENT_BYTE_FORMATS.map(|f| format!("\"{f}\"")).join(", "))),
+    };
+    let mut options = photocraft_io::ExportOptions::default();
+    match p.get("quality") {
         None | Some(Value::Null) => {}
-        Some(Value::String(f)) if f == photocraft_format::EXTENSION => {}
-        Some(_) => return Err(format!("`format` must be \"{}\"", photocraft_format::EXTENSION)),
+        Some(v) => {
+            let quality = v.as_u64().filter(|q| (1..=100).contains(q)).ok_or_else(|| "`quality` must be a whole number from 1 to 100".to_owned())?;
+            options.encode.jpeg_quality = quality as u8;
+        }
     }
     let st = &app.session.documents()[target_index(app, p)?];
-    // As File > Save writes it, from the document as it is: nothing in it is touched.
-    let name = format!("document.{}", photocraft_format::EXTENSION);
-    let exported = photocraft_io::export(&st.doc, &name, &Default::default()).map_err(|e| e.to_string())?;
+    // As File > Save (or Save a Copy in that format) writes it, from the document as it is: nothing in it is touched.
+    let name = format!("document.{format}");
+    let exported = photocraft_io::export(&st.doc, &name, &options).map_err(|e| e.to_string())?;
     if exported.bytes.len() > MAX_BYTES {
-        return Err(format!("the document is {} MiB as a .pcraft: more than a reply carries ({} MiB)", exported.bytes.len() >> 20, MAX_BYTES >> 20));
+        return Err(format!("the document is {} MiB as a .{format}: more than a reply carries ({} MiB)", exported.bytes.len() >> 20, MAX_BYTES >> 20));
     }
     Ok(json!({
         "name": st.doc.name,
-        "format": photocraft_format::EXTENSION,
+        "format": format,
         "bytes": base64::engine::general_purpose::STANDARD.encode(&exported.bytes),
         "revision": st.revision,
+        "warnings": exported.warnings,
     }))
 }
