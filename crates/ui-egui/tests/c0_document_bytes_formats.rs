@@ -62,3 +62,21 @@ fn unknown_formats_and_bad_qualities_are_refused() {
         assert_eq!(reply["ok"], false, "{params} was accepted: {reply}");
     }
 }
+
+#[test]
+fn a_document_can_be_renamed_by_the_host() {
+    let (mut app, ctx) = app_with_two_layers();
+    let state = call(&mut app, &ctx, "ui.inspect", json!({}));
+    let id = state["result"]["session"]["documents"][0]["id"].clone();
+    let reply = call(&mut app, &ctx, "c0.rename", json!({"id": id, "name": "  CPO cover - Ausgewandert (layers).psd "}));
+    assert_eq!(reply["ok"], true, "{reply}");
+    assert_eq!(reply["result"]["name"], "CPO cover - Ausgewandert (layers).psd");
+    let state = call(&mut app, &ctx, "ui.inspect", json!({}));
+    assert_eq!(state["result"]["session"]["documents"][0]["name"], "CPO cover - Ausgewandert (layers).psd");
+    for bad in ["", "   ", "a/b", "a\\b", "tab\there"] {
+        let reply = call(&mut app, &ctx, "c0.rename", json!({"id": id, "name": bad}));
+        assert_eq!(reply["ok"], false, "{bad:?} was accepted: {reply}");
+    }
+    let reply = call(&mut app, &ctx, "c0.rename", json!({"id": 999_999, "name": "x"}));
+    assert_eq!(reply["ok"], false);
+}

@@ -23,7 +23,7 @@ use crate::PhotocraftApp;
 use crate::tab_strip::{self, TabFit};
 
 /// The methods of this module, for the host contract test.
-pub const METHODS: [&str; 4] = ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes"];
+pub const METHODS: [&str; 5] = ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes", "c0.rename"];
 
 /// The most bytes of a document a reply carries: its base64 is 96 MiB, the largest `c0.*` message.
 const MAX_BYTES: usize = 72 * 1024 * 1024;
@@ -35,6 +35,7 @@ pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, method: &str, params
         "c0.close" => close(app, ctx, params),
         "c0.tabs" => tabs(app, params),
         "c0.documentBytes" => document_bytes(app, params),
+        "c0.rename" => rename(app, params),
         other => Err(format!("unknown method `{other}`")),
     }
 }
@@ -101,6 +102,29 @@ fn activate(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
     app.session.set_active(index);
     app.jobs.focus = None;
     Ok(json!({"id": id, "document": index}))
+}
+
+/// The longest name `c0.rename` takes, in characters.
+pub const MAX_NAME_CHARS: usize = 200;
+
+/// Names a document: its tab, the Layers panel title and the name a later save suggests (founder 2026-11-10: rename
+/// from the host's document menu; restore gives an autosaved document its own name back). The document becomes the
+/// active one, as a click on its tab does. Not a history step, as a save's new name is not.
+fn rename(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
+    let (id, index) = required_index(app, p)?;
+    let name = p.get("name").and_then(Value::as_str).map(str::trim).unwrap_or("");
+    if name.is_empty() || name.chars().count() > MAX_NAME_CHARS || name.chars().any(|c| c == '/' || c == '\\' || c.is_control()) {
+        return Err(format!("`name` must be a plain name of 1 to {MAX_NAME_CHARS} characters"));
+    }
+    if !app.session.tab_visible(index) {
+        return Err(format!("document {id} is hidden by the tab filter"));
+    }
+    app.session.set_active(index);
+    let st = app.session.active_mut().ok_or_else(|| "no document open".to_owned())?;
+    if st.doc.name != name {
+        std::sync::Arc::make_mut(&mut st.doc).name = name.to_owned();
+    }
+    Ok(json!({"id": id, "name": name}))
 }
 
 fn close(app: &mut PhotocraftApp, ctx: &egui::Context, p: &Value) -> Result<Value, String> {
