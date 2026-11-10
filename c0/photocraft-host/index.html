@@ -16,6 +16,23 @@
     // page-control feature defines window.__photocraftControl once the app runs. Until then this is
     // undefined, which the host reads as "not ready yet".
     Object.defineProperty(window, '__c0hostRequest', { get: () => window.__photocraftControl });
+
+    // Ctrl + Alt + wheel is PhotoCraft's zoom, the same gesture as Alt + wheel (wheel_nav::alt_gesture).
+    // When the keys went to C0VIBE's window (a host menu or the AI bar had the focus), the page never saw
+    // Ctrl go down. eframe then reads Ctrl on the wheel event as a trackpad pinch and zooms by
+    // e^(0.01 x deltaY): 2.7x for one 100-pixel notch. Pass the notch on as Alt + wheel instead, which
+    // zooms one step. With Shift held it is left alone: PhotoCraft leaves Ctrl + Alt + Shift undecided.
+    window.addEventListener('wheel', (event) => {
+      if (!event.isTrusted || !event.ctrlKey || !event.altKey || event.shiftKey || event.metaKey) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      event.target.dispatchEvent(new WheelEvent('wheel', {
+        deltaX: event.deltaX, deltaY: event.deltaY, deltaZ: event.deltaZ, deltaMode: event.deltaMode,
+        clientX: event.clientX, clientY: event.clientY, screenX: event.screenX, screenY: event.screenY,
+        buttons: event.buttons, altKey: true, ctrlKey: false, shiftKey: false, metaKey: false,
+        bubbles: true, cancelable: true, composed: true,
+      }));
+    }, { capture: true, passive: false });
   </script>
 </head>
 <body>
