@@ -36,10 +36,12 @@ Only allowed to go down. Each line names the reason and whether it was offered u
 | `crates/ui-egui/src/tools/retouch_ui.rs` | 2 (2 replaced) | `set_source` keeps the ⌥-clicked point as it is instead of rounding it to a whole pixel (`[x, y]` for `[x.round(), y.round()]`, twice) | **Upstream bug fix candidate.** The source point was rounded when set and the clone offset rounded again when the stroke began, so the copied patch could sit up to a pixel off the source point (measured 0.8 px). One rounding is left, half a pixel at most. Clone Stamp and Healing Brush. Tests: `crates/ui-egui/tests/c0_clone_offset.rs` (3 of its 4 tests fail on upstream's lines). Still present in upstream at `tools/retouch_ui.rs` (2026-11-09) | Not yet (a plain bug fix, worth offering) |
 
 Carried from upstream PR storytold/photocraft#12515 (issue #7842, the web build could not paste an image from the system
-clipboard): its two commits, cherry-picked onto `c0/main` on 2026-11-09 (`6ae9e907`, the paste listener) and 2026-11-10
+clipboard): its three commits, cherry-picked onto `c0/main` on 2026-11-09 (`6ae9e907`, the paste listener) and 2026-11-10
 (`51871191`, the review round: all input waits while a pasted image is read, a paste from the browser's or the host's
 Edit menu is pressed as Ctrl+V once read, Edit › Paste asks for Ctrl+V after the page loses focus, reads are capped at the
-decoder's limit). These lines are upstream's own fix, not ours: drop every row below when #12515 merges (the next sync
+decoder's limit; `65b28019`, the second review round: pasted images are matched by their decoded pixels, held input is
+let go after 3 s if a read never finishes, a hidden page counts as leaving, an SVG-only paste says it is not supported,
+and `crate::clipboard::wire` adds the two clipboard services so upstream's `services()` keeps its signature). These lines are upstream's own fix, not ours: drop every row below when #12515 merges (the next sync
 takes upstream's version), or follow its review if upstream asks for changes. The fix's new files
 `apps/photocraft-web/src/clipboard.rs` and `clipboard_tests.rs` add no debt.
 
@@ -47,10 +49,10 @@ takes upstream's version), or follow its review if upstream asks for changes. Th
 |---|---|---|---|---|
 | `apps/photocraft-web/Cargo.toml` | 1 (1 replaced) | web-sys features `ClipboardEvent`, `DataTransfer`, `DataTransferItem`, `DataTransferItemList`, `File`, `KeyboardEvent` | The paste listener reads the image file from the paste event and presses Ctrl+V for a menu paste | Yes, #12515 |
 | `apps/photocraft-web/src/main.rs` | 6 (1 replaced) | `mod clipboard;` (wasm and tests) and two doc lines | Declares the fix's module | Yes, #12515 |
-| `apps/photocraft-web/src/web.rs` | 21 (3 replaced) | the clipboard is created and listened to before `PhotocraftApp::new` and passed to `services`; `WebShell` holds it and the held input; every `raw_input` event waits while a pasted image is read; `clipboard_get_image` and `clipboard_copied` in `services`. Our `page_control::attach` stays right after `PhotocraftApp::new` | Ctrl+V with an image on the clipboard said "the clipboard is empty" | Yes, #12515 |
+| `apps/photocraft-web/src/web.rs` | 15 (2 replaced) | the clipboard is created and listened to before `PhotocraftApp::new`, and `crate::clipboard::wire` wraps upstream's unchanged `services(...)` call; `WebShell` holds the clipboard and the held input; every `raw_input` event waits while a pasted image is read (let go after 3 s). Our `page_control::attach` stays right after `PhotocraftApp::new` | Ctrl+V with an image on the clipboard said "the clipboard is empty" | Yes, #12515 |
 | `crates/ui-egui/src/services.rs` | 7 | `Services::clipboard_copied` and its type | The web shell learns that a copy made in PhotoCraft is newer than the image on the system clipboard | Yes, #12515 |
-| `crates/ui-egui/src/app/clipboard.rs` | 11 | Copy, Cut and Copy Merged call `clipboard_copied` through `PhotocraftApp::copied_to_clipboard` | Same | Yes, #12515 |
-| `crates/ui-egui/src/app/clipboard_tests.rs` | 50 | tests for the hook and the menu paste | Same | Yes, #12515 |
+| `crates/ui-egui/src/app/clipboard.rs` | 14 (2 replaced) | Copy, Cut and Copy Merged call `clipboard_copied` through `PhotocraftApp::copied_to_clipboard`, which also announces the copy | Same | Yes, #12515 |
+| `crates/ui-egui/src/app/clipboard_tests.rs` | 59 | tests for the hook, the menu paste and the copy announcement | Same | Yes, #12515 |
 | `crates/ui-egui/src/app/commands.rs` | 1 (1 replaced) | the copy command goes through `copied_to_clipboard` | Same | Yes, #12515 |
 | `crates/ui-egui/src/panels/actions.rs` | 6 (1 replaced) | an action's copy step goes through `copied_to_clipboard` | Same | Yes, #12515 |
 
@@ -59,7 +61,7 @@ Removed from the list in the 2026-11-09 merge:
 - `ui-egui/src/export_dialog.rs`, `ui-egui/src/view_cmds.rs` and `ui-egui/src/retouch_ui.rs`: deleted upstream; their homes are the rows above (`dialogs/export_dialog.rs`, `menus/view_cmds/dialogs.rs`, `tools/retouch_ui.rs`).
 - `ui-egui/src/menus.rs`, `engine/src/lib.rs`'s DocState and `canvas.rs`'s start screen and tab rows: moved (see the rows above).
 
-Total: 287 added lines in 52 upstream files, 103 of them in 8 files carried from #12515 until it merges (184 in 47 files of our own before it): the added column of `git diff --numstat 9394960e4 -- . ':!c0' ':!.github'`, where a replaced or re-indented line counts as added (the deleted logos and workflows add nothing). Ratchet: 80 lines (set 2026-10-14). Measured 184 after the 2026-11-09 merge. The daily sync counts the added column of `git diff --numstat --diff-filter=M main c0/main -- . ':!c0'` and refuses a candidate above this figure. **The ratchet is already exceeded:** 179 added lines in 41 files before this merge (the fork's commits `d67b26781`, `b5021c61d` and their catalogue rows came after the last ratchet update), and 184 after it. Raising the ratchet is a maintainer decision and is not done here.
+Total: 293 added lines in 52 upstream files, 109 of them in 8 files carried from #12515 until it merges (184 in 47 files of our own before it): the added column of `git diff --numstat 9394960e4 -- . ':!c0' ':!.github'`, where a replaced or re-indented line counts as added (the deleted logos and workflows add nothing). Ratchet: 80 lines (set 2026-10-14). Measured 184 after the 2026-11-09 merge. The daily sync counts the added column of `git diff --numstat --diff-filter=M main c0/main -- . ':!c0'` and refuses a candidate above this figure. **The ratchet is already exceeded:** 179 added lines in 41 files before this merge (the fork's commits `d67b26781`, `b5021c61d` and their catalogue rows came after the last ratchet update), and 184 after it. Raising the ratchet is a maintainer decision and is not done here.
 Was 179 added lines in 41 files before the 2026-11-09 merge (the fork's HEAD `41550606f` against the merge base `7250e6e29`, same command).
 Was 60 added lines in 15 files before the marching ants' clock (2026-10-14): +1 `ui-egui/src/lib.rs`, +2 `tool_feedback.rs` (new to the list, and 2 replaced), 1 more replaced in `canvas.rs`.
 Was 42 added lines in 12 files before the sessions requests (2026-10-13): +8 `engine/src/lib.rs`, +2 `engine/src/inspect.rs`, +1 `menus.rs` (2 removed), +1 `ui-egui/src/lib.rs`, 5 more replaced in `canvas.rs`, 1 in `control.rs` (the last two add no line).
