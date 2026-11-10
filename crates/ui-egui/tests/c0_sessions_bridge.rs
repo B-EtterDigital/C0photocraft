@@ -388,7 +388,7 @@ fn document_bytes_round_trip_without_touching_the_source() {
     assert_eq!(reply["format"], "pcraft");
     assert_eq!(reply["revision"], revision);
     let keys: Vec<&String> = reply.as_object().unwrap().keys().collect();
-    assert_eq!(keys, ["bytes", "format", "name", "revision"]);
+    assert_eq!(keys, ["bytes", "format", "name", "revision", "warnings"]);
     let bytes = unb64(&reply["bytes"]);
     assert!(photocraft_format::is_pcraft(&bytes), "the native layered format");
 
