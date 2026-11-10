@@ -368,7 +368,7 @@ fn h_generative_bridge_commands() {
 fn i_sessions_bridge() {
     assert_eq!(
         photocraft_ui_egui::c0_sessions::METHODS,
-        ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes"],
+        ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes", "c0.rename"],
         "the host calls exactly these"
     );
     let ctx = egui::Context::default();

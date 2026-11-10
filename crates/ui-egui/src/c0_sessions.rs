@@ -11,7 +11,7 @@
 //! | `c0.activate` | `{id}` | `{id, document}` |
 //! | `c0.close` | `{id, discard?}` | `{id, closed, prompt}` |
 //! | `c0.tabs` | `{visible: [id] \| null}` (no `visible`: only reports) | `{visible, active}` |
-//! | `c0.documentBytes` | `{id?, format?: "pcraft"}` | `{name, format, bytes, revision}` |
+//! | `c0.documentBytes` | `{id?, format?: "pcraft" \| "psd" \| "png" \| "jpg" \| "jpeg", quality?: 1..=100}` | `{name, format, bytes, revision, warnings}` |
 //!
 //! `bytes` is base64 (standard alphabet, no `data:` prefix). `c0.capture`, `c0.selectionMask` and
 //! `c0.place` take the same optional `id` to act on a document other than the active one.
@@ -23,7 +23,7 @@ use crate::PhotocraftApp;
 use crate::tab_strip::{self, TabFit};
 
 /// The methods of this module, for the host contract test.
-pub const METHODS: [&str; 4] = ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes"];
+pub const METHODS: [&str; 5] = ["c0.activate", "c0.close", "c0.tabs", "c0.documentBytes", "c0.rename"];
 
 /// The most bytes of a document a reply carries: its base64 is 96 MiB, the largest `c0.*` message.
 const MAX_BYTES: usize = 72 * 1024 * 1024;
@@ -35,6 +35,7 @@ pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, method: &str, params
         "c0.close" => close(app, ctx, params),
         "c0.tabs" => tabs(app, params),
         "c0.documentBytes" => document_bytes(app, params),
+        "c0.rename" => rename(app, params),
         other => Err(format!("unknown method `{other}`")),
     }
 }
@@ -103,6 +104,29 @@ fn activate(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
     Ok(json!({"id": id, "document": index}))
 }
 
+/// The longest name `c0.rename` takes, in characters.
+pub const MAX_NAME_CHARS: usize = 200;
+
+/// Names a document: its tab, the Layers panel title and the name a later save suggests (founder 2026-11-10: rename
+/// from the host's document menu; restore gives an autosaved document its own name back). The document becomes the
+/// active one, as a click on its tab does. Not a history step, as a save's new name is not.
+fn rename(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
+    let (id, index) = required_index(app, p)?;
+    let name = p.get("name").and_then(Value::as_str).map(str::trim).unwrap_or("");
+    if name.is_empty() || name.chars().count() > MAX_NAME_CHARS || name.chars().any(|c| c == '/' || c == '\\' || c.is_control()) {
+        return Err(format!("`name` must be a plain name of 1 to {MAX_NAME_CHARS} characters"));
+    }
+    if !app.session.tab_visible(index) {
+        return Err(format!("document {id} is hidden by the tab filter"));
+    }
+    app.session.set_active(index);
+    let st = app.session.active_mut().ok_or_else(|| "no document open".to_owned())?;
+    if st.doc.name != name {
+        std::sync::Arc::make_mut(&mut st.doc).name = name.to_owned();
+    }
+    Ok(json!({"id": id, "name": name}))
+}
+
 fn close(app: &mut PhotocraftApp, ctx: &egui::Context, p: &Value) -> Result<Value, String> {
     let (id, index) = required_index(app, p)?;
     let discard = match p.get("discard") {
@@ -135,23 +159,37 @@ fn tabs(app: &mut PhotocraftApp, p: &Value) -> Result<Value, String> {
     Ok(json!({"visible": app.session.visible(), "active": active_id(app)}))
 }
 
+/// The formats `c0.documentBytes` writes: our own `.pcraft` (lossless, the default) and the ones the host saves a copy
+/// in for a project (founder 2026-11-10: "save to the selected project as PSD, and save as JPG or PNG"). PSD keeps the
+/// layers; PNG and JPG are the flattened picture, and the reply's `warnings` say what was approximated or dropped.
+pub const DOCUMENT_BYTE_FORMATS: [&str; 5] = [photocraft_format::EXTENSION, "psd", "png", "jpg", "jpeg"];
+
 fn document_bytes(app: &PhotocraftApp, p: &Value) -> Result<Value, String> {
-    match p.get("format") {
+    let format = match p.get("format") {
+        None | Some(Value::Null) => photocraft_format::EXTENSION,
+        Some(Value::String(f)) if DOCUMENT_BYTE_FORMATS.contains(&f.as_str()) => f.as_str(),
+        Some(_) => return Err(format!("`format` must be one of {}", DOCUMENT_BYTE_FORMATS.map(|f| format!("\"{f}\"")).join(", "))),
+    };
+    let mut options = photocraft_io::ExportOptions::default();
+    match p.get("quality") {
         None | Some(Value::Null) => {}
-        Some(Value::String(f)) if f == photocraft_format::EXTENSION => {}
-        Some(_) => return Err(format!("`format` must be \"{}\"", photocraft_format::EXTENSION)),
+        Some(v) => {
+            let quality = v.as_u64().filter(|q| (1..=100).contains(q)).ok_or_else(|| "`quality` must be a whole number from 1 to 100".to_owned())?;
+            options.encode.jpeg_quality = quality as u8;
+        }
     }
     let st = &app.session.documents()[target_index(app, p)?];
-    // As File > Save writes it, from the document as it is: nothing in it is touched.
-    let name = format!("document.{}", photocraft_format::EXTENSION);
-    let exported = photocraft_io::export(&st.doc, &name, &Default::default()).map_err(|e| e.to_string())?;
+    // As File > Save (or Save a Copy in that format) writes it, from the document as it is: nothing in it is touched.
+    let name = format!("document.{format}");
+    let exported = photocraft_io::export(&st.doc, &name, &options).map_err(|e| e.to_string())?;
     if exported.bytes.len() > MAX_BYTES {
-        return Err(format!("the document is {} MiB as a .pcraft: more than a reply carries ({} MiB)", exported.bytes.len() >> 20, MAX_BYTES >> 20));
+        return Err(format!("the document is {} MiB as a .{format}: more than a reply carries ({} MiB)", exported.bytes.len() >> 20, MAX_BYTES >> 20));
     }
     Ok(json!({
         "name": st.doc.name,
-        "format": photocraft_format::EXTENSION,
+        "format": format,
         "bytes": base64::engine::general_purpose::STANDARD.encode(&exported.bytes),
         "revision": st.revision,
+        "warnings": exported.warnings,
     }))
 }
