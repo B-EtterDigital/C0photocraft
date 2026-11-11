@@ -547,6 +547,13 @@ pub(crate) fn show(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
         set_dock_width(app, width.clamp(*range.start(), *range.end()));
     }
     native_dock_width(app, ui.ctx());
+    // No room for the panels: the window is shorter than its bars, or the page embedding the app
+    // hid its frame. The dock refuses an empty area, and that refusal used to stay on the status
+    // line as "docking geometry is not finite and bounded" after the room came back. Draw nothing
+    // this frame instead.
+    if !has_room(ui.available_rect_before_wrap()) {
+        return;
+    }
     let layout = match &app.ui.docking {
         Some(workspace) => workspace.layout.clone(),
         None => legacy(app),
@@ -638,6 +645,11 @@ pub(crate) fn show(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
             app.ui.status = error;
         }
     }
+}
+
+/// The dock can draw in `rect`: finite, with some width and height (the dock's own test).
+fn has_room(rect: egui::Rect) -> bool {
+    rect.is_finite() && rect.width() > 0.0 && rect.height() > 0.0
 }
 
 /// A modal dialog or workspace is open. egui's `Modal` blocks input only in the window it shows
