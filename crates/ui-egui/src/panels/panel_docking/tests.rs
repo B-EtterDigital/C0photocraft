@@ -2364,3 +2364,34 @@ fn native_migration_still_waits_and_runs_without_an_accepted_explicit_request() 
         assert!(h.ctx.data_mut(|data| data.get_persisted::<egui::PanelState>(key)).is_none(), "the unchanged native migration consumes its state once");
     }
 }
+
+/// No room for the panels (the bars took the whole height, or the embedding page hid the frame):
+/// the dock draws nothing that frame and leaves the status line alone, then draws again once the
+/// room is back.
+#[test]
+fn no_room_for_the_dock_leaves_the_status_line_alone() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static SQUEEZED: AtomicBool = AtomicBool::new(true);
+    let mut ready = false;
+    let mut h = Harness::builder().with_size(vec2(1280.0, 800.0)).with_step_dt(1.0 / 60.0).build_ui_state(
+        move |ui, app: &mut PhotocraftApp| {
+            if !ready {
+                PhotocraftApp::setup_context(ui.ctx(), crate::theme::ThemeKind::ProMedium);
+                ready = true;
+                return;
+            }
+            if SQUEEZED.load(Ordering::Relaxed) {
+                ui.allocate_space(ui.available_size());
+            }
+            show(app, ui);
+        },
+        app(),
+    );
+    h.run_steps(4);
+    let refusal = "docking geometry is not finite and bounded";
+    assert!(!h.state().ui.status.contains(refusal), "no room is not an error: {}", h.state().ui.status);
+    SQUEEZED.store(false, Ordering::Relaxed);
+    h.run_steps(4);
+    assert!(!h.state().ui.status.contains(refusal), "{}", h.state().ui.status);
+    canvas_rect(&h);
+}
